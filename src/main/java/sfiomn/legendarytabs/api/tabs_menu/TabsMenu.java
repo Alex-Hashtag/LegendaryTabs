@@ -43,32 +43,70 @@ public class TabsMenu {
     }
 
     public static void addTabToScreen(TabBase newTab, Class<? extends Screen> screen, Function<Player, Integer> screenWidth, Function<Player, Integer> screenHeight, int priority) {
+        LegendaryTabs.LOGGER.info("addTabToScreen called for tab {} on screen {} with priority {}", 
+                newTab.getClass().getSimpleName(), screen.getSimpleName(), priority);
+        
         if (tabsScreens.containsKey(screen)) {
             tabsScreens.get(screen).addTab(priority, newTab);
+            LegendaryTabs.LOGGER.info("Added tab {} to existing screen info for {}", 
+                    newTab.getClass().getSimpleName(), screen.getSimpleName());
         } else {
             ScreenInfo screenInfo = new ScreenInfo(screenWidth, screenHeight, newTab, priority);
             tabsScreens.put(screen, screenInfo);
+            LegendaryTabs.LOGGER.info("Created new screen info for {} and added tab {}", 
+                    screen.getSimpleName(), newTab.getClass().getSimpleName());
         }
+        
+        LegendaryTabs.LOGGER.info("Total screens with tabs: {}", tabsScreens.size());
+    }
+    
+    public static java.util.Set<Class<? extends Screen>> getRegisteredScreens() {
+        return tabsScreens.keySet();
+    }
+    
+    public static ScreenInfo getScreenInfo(Class<? extends Screen> screenClass) {
+        return tabsScreens.get(screenClass);
     }
 
     public static void initScreenButtons(ScreenEvent.Init.Post event) {
+        LegendaryTabs.LOGGER.info("initScreenButtons called for screen: {}", event.getScreen().getClass().getSimpleName());
+        LegendaryTabs.LOGGER.info("Registered screens: {}", tabsScreens.keySet().stream().map(Class::getSimpleName).toList());
+        
         if (tabsScreens.containsKey(event.getScreen().getClass())) {
-            if (Minecraft.getInstance().player == null)
+            LegendaryTabs.LOGGER.info("Found screen info for: {}", event.getScreen().getClass().getSimpleName());
+            
+            if (Minecraft.getInstance().player == null) {
+                LegendaryTabs.LOGGER.warn("Player is null, skipping tab initialization");
                 return;
+            }
 
             ScreenInfo screenInfo = tabsScreens.get(event.getScreen().getClass());
             TabsMenu.leftScreenPos = (event.getScreen().width - screenInfo.width.apply(Minecraft.getInstance().player)) / 2;
             TabsMenu.topScreenPos = (event.getScreen().height - screenInfo.height.apply(Minecraft.getInstance().player)) / 2;
 
-            if (TabsMenu.topScreenPos - TAB_HEIGHT < 0)
+            if (TabsMenu.topScreenPos - TAB_HEIGHT < 0) {
+                LegendaryTabs.LOGGER.warn("Not enough space for tabs (topScreenPos: {})", TabsMenu.topScreenPos);
                 return;
+            }
 
             startTabIndex = 0;
             currentTabsCount = 0;
             enabledTabs = new ArrayList<>();
+            
+            LegendaryTabs.LOGGER.info("Processing {} priority groups for screen {}", screenInfo.tabs.size(), event.getScreen().getClass().getSimpleName());
+            
             for (List<TabBase> tabBases: screenInfo.tabs.values()) {
-                enabledTabs.addAll(tabBases.stream().filter(tabBase -> tabBase.isEnabled(Minecraft.getInstance().player)).toList());
+                LegendaryTabs.LOGGER.info("Processing {} tabs in priority group", tabBases.size());
+                for (TabBase tabBase : tabBases) {
+                    boolean enabled = tabBase.isEnabled(Minecraft.getInstance().player);
+                    LegendaryTabs.LOGGER.info("Tab {} enabled: {}", tabBase.getClass().getSimpleName(), enabled);
+                    if (enabled) {
+                        enabledTabs.add(tabBase);
+                    }
+                }
             }
+            
+            LegendaryTabs.LOGGER.info("Total enabled tabs for screen {}: {}", event.getScreen().getClass().getSimpleName(), enabledTabs.size());
 
             int remainingWidth = screenInfo.width.apply(Minecraft.getInstance().player) - Config.Baked.tabsMenuOffsetX;
             for (TabBase tabBase: enabledTabs) {
@@ -108,8 +146,25 @@ public class TabsMenu {
     }
 
     public static void register(TabBase tabBase) {
-        LegendaryTabs.LOGGER.info("Tab " + tabBase.getClass().getName() + " registered");
-        tabBase.initTabOnScreens();
+        LegendaryTabs.LOGGER.info("TabsMenu.register() called for tab: " + tabBase.getClass().getName());
+        try {
+            tabBase.initTabOnScreens();
+            LegendaryTabs.LOGGER.info("Successfully initialized tab on screens: " + tabBase.getClass().getName());
+        } catch (Exception e) {
+            LegendaryTabs.LOGGER.error("Failed to initialize tab on screens: " + tabBase.getClass().getName(), e);
+        }
+    }
+    
+    public static void clearDataDrivenTabs() {
+        LegendaryTabs.LOGGER.info("Clearing all data-driven tabs from TabsMenu");
+        // Clear all tabs from all screens
+        // We need to be careful not to remove hardcoded tabs, only data-driven ones
+        for (ScreenInfo screenInfo : tabsScreens.values()) {
+            for (List<TabBase> tabList : screenInfo.tabs.values()) {
+                tabList.removeIf(tab -> tab instanceof DataDrivenTabBase);
+            }
+        }
+        LegendaryTabs.LOGGER.info("Cleared data-driven tabs from TabsMenu");
     }
 
     public static class ScreenInfo {

@@ -172,6 +172,8 @@ dependencies {
 
     runtimeOnly(fg.deobf("curse.maven:ftblibrary-404465:6016763"))
     //runtimeOnly(fg.deobf("curse.maven:yetanotherconfig-667299:6336646"))
+    runtimeOnly(fg.deobf("curse.maven:controlling-250398:4646682"))
+    runtimeOnly(fg.deobf("curse.maven:searchables-858542:5284015"))
 
     implementation fg.deobf("curse.maven:quark-243121:6427817")
     implementation fg.deobf("curse.maven:zeta-968868:6432578")

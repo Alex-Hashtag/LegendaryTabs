@@ -22,9 +22,7 @@ import sfiomn.legendarytabs.utils.IntegrationUtils;
 import top.theillusivec4.curios.client.gui.CuriosScreenV2;
 
 public class FtbQuestsTab extends TabBase {
-    private final ResourceLocation TAB_ICONS = new ResourceLocation(LegendaryTabs.MOD_ID, "textures/gui/tab_menu_buttons.png");
-    private final int TAB_ICON_TEX_X = 27;
-    private final int TAB_ICON_TEX_Y = 23;
+    private final ResourceLocation TAB_ICON = new ResourceLocation(LegendaryTabs.MOD_ID, "textures/gui/ftbquests.png");
 
     public FtbQuestsTab() {
         super();
@@ -42,13 +40,10 @@ public class FtbQuestsTab extends TabBase {
     }
 
     @Override
-    public void render(GuiGraphics gui, int x, int y, boolean hover) {
-        int texOffsetX = 0;
-        if (hover)
-            texOffsetX = 54;
-
-        gui.blit(TAB_ICONS, x, y,TAB_ICON_TEX_X + texOffsetX, TAB_ICON_TEX_Y, TAB_WIDTH, TAB_HEIGHT);
+    public ResourceLocation getIconTexture() {
+        return TAB_ICON;
     }
+
 
     @Override
     public boolean isCurrentlyUsed(Screen currentScreen) {

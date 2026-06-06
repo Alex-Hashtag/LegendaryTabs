@@ -1,0 +1,22 @@
+{
+  "id": "reskillable_reimagined",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/reskillable.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "open_screen",
+    "screen_class": "net.bandit.reskillable.client.screen.SkillScreen"
+  },
+  "target_screen_class": "net.bandit.reskillable.client.screen.SkillScreen",
+  "tooltip": "tooltip.legendarytabs.tab.reskillable_reimagined.description",
+  "required_mods": [
+    "reskillable"
+  ],
+  "screen_patterns": [
+    "*"
+  ]
+}

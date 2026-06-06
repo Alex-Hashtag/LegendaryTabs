@@ -1,0 +1,29 @@
+{
+  "id": "body_damage",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/legendarysurvivaloverhaul.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "key.legendarysurvivaloverhaul.body_health"
+  },
+  "target_screen_class": "sfiomn.legendarysurvivaloverhaul.client.screens.BodyHealthScreen",
+  "tooltip": "tooltip.legendarytabs.tab.body_damage.description",
+  "required_mods": [
+    "legendarysurvivaloverhaul"
+  ],
+  "screen_patterns": [
+    "*"
+  ],
+  "screen_sizes": {
+    "sfiomn.legendarysurvivaloverhaul.client.screens.BodyHealthScreen": {
+      "width": 176,
+      "height": 183,
+      "priority": 50
+    }
+  }
+}

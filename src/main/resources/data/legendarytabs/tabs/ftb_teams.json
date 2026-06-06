@@ -1,0 +1,21 @@
+{
+  "id": "ftb_teams",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/ftbteams.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "key.ftbteams.open_gui"
+  },
+  "tooltip": "tooltip.legendarytabs.tab.ftb_teams.description",
+  "required_mods": [
+    "ftbteams"
+  ],
+  "screen_patterns": [
+    "*"
+  ]
+}

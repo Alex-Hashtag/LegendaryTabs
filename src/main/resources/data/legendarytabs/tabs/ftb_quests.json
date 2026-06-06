@@ -1,0 +1,21 @@
+{
+  "id": "ftb_quests",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/ftbquests.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "key.ftbquests.quests"
+  },
+  "tooltip": "tooltip.legendarytabs.tab.ftb_quests.description",
+  "required_mods": [
+    "ftbquests"
+  ],
+  "screen_patterns": [
+    "*"
+  ]
+}

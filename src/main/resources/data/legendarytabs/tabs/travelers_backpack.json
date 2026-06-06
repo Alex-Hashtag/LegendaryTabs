@@ -1,0 +1,28 @@
+{
+  "id": "travelers_backpack",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/backpacked.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "api_call",
+    "call": "travelersbackpack:open_backpack"
+  },
+  "tooltip": "tooltip.legendarytabs.tab.backpack.description",
+  "required_mods": [
+    "travelersbackpack"
+  ],
+  "enabled_conditions": [
+    {
+      "type": "item_in_curio",
+      "item": "travelersbackpack:*",
+      "curio_slot": "back"
+    }
+  ],
+  "screen_patterns": [
+    "*"
+  ]
+}

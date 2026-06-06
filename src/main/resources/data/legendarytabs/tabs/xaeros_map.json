@@ -1,0 +1,22 @@
+{
+  "id": "xaeros_map",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/map_atlases.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "gui.xaero_open_map",
+    "close_screen_first": true
+  },
+  "tooltip": "tooltip.legendarytabs.tab.xaeros_map.description",
+  "required_mods": [
+    "xaeroworldmap"
+  ],
+  "screen_patterns": [
+    "*"
+  ]
+}

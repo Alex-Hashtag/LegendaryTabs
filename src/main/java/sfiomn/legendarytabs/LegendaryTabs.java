@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import sfiomn.legendarytabs.api.tabs_menu.TabsMenu;
 import sfiomn.legendarytabs.client.tabs_menu.*;
 import sfiomn.legendarytabs.config.Config;
+import sfiomn.legendarytabs.data.TabDataLoader;
+import sfiomn.legendarytabs.data.TabRegistry;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -156,33 +158,48 @@ public class LegendaryTabs
         {
             Config.Baked.bakeClient();
             TabsMenu.register(new InventoryTab());
+            
+            // Ensure TabDataLoader is instantiated
+            LOGGER.info("Initializing TabDataLoader during client setup");
+            if (TabDataLoader.getInstance() == null) {
+                LOGGER.info("TabDataLoader not yet instantiated, creating now");
+                new TabDataLoader();
+            }
+            
+            // Manual trigger for datapack loading since resource events might not fire on first startup
+            LOGGER.info("Manually triggering datapack tab loading during client setup");
+            event.enqueueWork(() -> {
+                // This runs after client setup is complete
+                TabRegistry.getInstance().reloadTabs();
+                LOGGER.info("Completed manual datapack tab loading");
+            });
 
             if (LegendaryTabs.backpackedLoaded)
                 TabsMenu.register(new BackpackedTab());
-            if (LegendaryTabs.travelersBackpackLoaded)
-                TabsMenu.register(new TravelersBackpackTab());
-            if (LegendaryTabs.legendarySurvivalOverhaulLoaded)
-                TabsMenu.register(new BodyDamageTab());
-            if (LegendaryTabs.ftbQuestsLoaded)
-                TabsMenu.register(new FtbQuestsTab());
-            if (LegendaryTabs.ftbTeamsLoaded)
-                TabsMenu.register(new FtbTeamsTab());
-            if (LegendaryTabs.reskillableLoaded)
-                TabsMenu.register(new ReskillableTab());
-            if (LegendaryTabs.reskillableReimaginedLoaded)
-                TabsMenu.register(new ReskillableReimaginedTab());
-            if (LegendaryTabs.mapAtlasesLoaded)
+            // if (LegendaryTabs.travelersBackpackLoaded)
+                // TravelersBackpackTab is now data-driven via JSON datapacks
+            // if (LegendaryTabs.legendarySurvivalOverhaulLoaded)
+                // BodyDamageTab is now data-driven via JSON datapacks
+            // if (LegendaryTabs.ftbQuestsLoaded)
+                // FtbQuestsTab is now data-driven via JSON datapacks
+            // if (LegendaryTabs.ftbTeamsLoaded)
+                // FtbTeamsTab is now data-driven via JSON datapacks
+            // if (LegendaryTabs.reskillableLoaded)
+                // ReskillableTab is now data-driven via JSON datapacks
+            // if (LegendaryTabs.reskillableReimaginedLoaded)
+                // ReskillableReimaginedTab is now data-driven via JSON datapacks
+            if (LegendaryTabs.mapAtlasesLoaded) 
                 TabsMenu.register(new MapAtlasesTab());
-            if (LegendaryTabs.xaerosMapLoaded)
-                TabsMenu.register(new XaerosMapTab());
-            if (LegendaryTabs.journeyMapLoaded)
-                TabsMenu.register(new JourneyMapTab());
-            if (LegendaryTabs.dietLoaded)
-                TabsMenu.register(new DietTab());
+            // if (LegendaryTabs.xaerosMapLoaded)
+                // XaerosMapTab is now data-driven via JSON datapacks
+            // if (LegendaryTabs.journeyMapLoaded)
+                // JourneyMapTab is now data-driven via JSON datapacks
+//            if (LegendaryTabs.dietLoaded)
+//                TabsMenu.register(new DietTab());
             if (LegendaryTabs.passiveSkillTreeLoaded)
                 TabsMenu.register(new PassiveSkillTreeTab());
-            if (LegendaryTabs.pufferfishsSkillsLoaded)
-                TabsMenu.register(new PufferfishsSkillsTab());
+            // if (LegendaryTabs.pufferfishsSkillsLoaded)
+                // PufferfishsSkillsTab is now data-driven via JSON datapacks
         }
     }
 }

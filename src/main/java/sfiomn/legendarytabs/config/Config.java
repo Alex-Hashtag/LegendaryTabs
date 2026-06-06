@@ -44,7 +44,6 @@ public class Config
 		public final ForgeConfigSpec.BooleanValue inventoryTabEnabled;
 		public final ForgeConfigSpec.BooleanValue backpackTabEnabled;
 		public final ForgeConfigSpec.BooleanValue travelersBackpackTabEnabled;
-		public final ForgeConfigSpec.BooleanValue bodyDamageTabEnabled;
 		public final ForgeConfigSpec.BooleanValue reskillableTabEnabled;
 		public final ForgeConfigSpec.BooleanValue ftbQuestsTabEnabled;
 		public final ForgeConfigSpec.BooleanValue mapAtlasesTabEnabled;
@@ -80,9 +79,6 @@ public class Config
 			travelersBackpackTabEnabled = builder
 					.comment(" If enabled, show the backpack button for Travelers Backpack mod in the tabs menu.")
 					.define("Travelers Backpack Tab Enabled ", true);
-			bodyDamageTabEnabled = builder
-					.comment(" If enabled, show the body damage button for Legendarysurvivaloverhaul in the tabs menu.")
-					.define("Body Damage Tab Enabled ", true);
 			reskillableTabEnabled = builder
 					.comment(" If enabled, show the reskillable button for Rereskillable or Reskillable Reimagined in the tabs menu.")
 					.define("Reskillable Tab Enabled ", true);
@@ -136,7 +132,6 @@ public class Config
 		public static boolean mapAtlasesTabEnabled;
 		public static boolean xaerosMapTabEnabled;
 		public static boolean journeyMapTabEnabled;
-		public static boolean bodyDamageTabEnabled;
 		public static boolean reskillableTabEnabled;
 		public static boolean ftbQuestsTabEnabled;
 		public static boolean ftbTeamsTabEnabled;
@@ -157,7 +152,6 @@ public class Config
 				inventoryTabEnabled = CLIENT.inventoryTabEnabled.get();
 				backpackTabEnabled = CLIENT.backpackTabEnabled.get();
 				travelersBackpackTabEnabled = CLIENT.travelersBackpackTabEnabled.get();
-				bodyDamageTabEnabled = CLIENT.bodyDamageTabEnabled.get();
 				reskillableTabEnabled = CLIENT.reskillableTabEnabled.get();
 				ftbQuestsTabEnabled = CLIENT.ftbQuestsTabEnabled.get();
 				mapAtlasesTabEnabled = CLIENT.mapAtlasesTabEnabled.get();

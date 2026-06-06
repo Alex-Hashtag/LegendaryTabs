@@ -1,0 +1,22 @@
+{
+  "id": "reskillable",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/reskillable.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "key.reskillable.open_skills"
+  },
+  "target_screen_class": "majik.rereskillable.client.screen.SkillScreen",
+  "tooltip": "tooltip.legendarytabs.tab.reskillable.description",
+  "required_mods": [
+    "rereskillable"
+  ],
+  "screen_patterns": [
+    "*"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "pufferfish_skills",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/idk2.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "api_call",
+    "call": "puffish_skills:open_screen"
+  },
+  "tooltip": "tooltip.legendarytabs.tab.pufferfish_skills.description",
+  "required_mods": [
+    "puffish_skills"
+  ],
+  "screen_patterns": [
+    "*"
+  ]
+}

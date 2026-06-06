@@ -1,0 +1,21 @@
+{
+  "id": "journey_map",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/map_atlases.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "api_call",
+    "call": "journeymap:open_fullscreen_map"
+  },
+  "tooltip": "tooltip.legendarytabs.tab.journey_map.description",
+  "required_mods": [
+    "journeymap"
+  ],
+  "screen_patterns": [
+    "*"
+  ]
+}

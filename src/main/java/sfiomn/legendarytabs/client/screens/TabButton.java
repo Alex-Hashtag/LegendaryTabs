@@ -33,8 +33,15 @@ public class TabButton extends Button {
     @Override
     public void onPress() {
         super.onPress();
-        if (!this.isDisabled)
+        LegendaryTabs.LOGGER.info("TabButton.onPress() called - tabBase: {}, isDisabled: {}", 
+                tabBase != null ? tabBase.getClass().getSimpleName() : "null", this.isDisabled);
+        if (!this.isDisabled) {
+            LegendaryTabs.LOGGER.info("Calling openTargetScreen for tab: {}", 
+                    tabBase != null ? tabBase.getClass().getSimpleName() : "null");
             tabBase.openTargetScreen(this.player);
+        } else {
+            LegendaryTabs.LOGGER.info("Tab button is disabled, not calling openTargetScreen");
+        }
     }
 
     public void setTabBase(TabBase tabBase) {
