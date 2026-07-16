@@ -1,20 +1,20 @@
 {
-  "id": "journey_map",
+  "id": "backpacked",
   "enabled": true,
   "icon": {
     "type": "texture",
-    "texture": "legendarytabs:textures/gui/map_atlases.png",
+    "texture": "legendarytabs:textures/gui/backpacked.png",
     "u": 0,
     "v": 0
   },
   "screen_open_action": {
     "type": "key_press",
-    "key_binding": "key.journeymap.map_toggle",
+    "key_binding": "key.backpacked.open_management",
     "close_screen_first": true
   },
-  "tooltip": "tooltip.legendarytabs.tab.journey_map.description",
+  "tooltip": "tooltip.legendarytabs.tab.backpack.description",
   "required_mods": [
-    "journeymap"
+    "backpacked"
   ],
   "screen_patterns": [
     "*"

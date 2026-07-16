@@ -8,8 +8,8 @@
     "v": 0
   },
   "screen_open_action": {
-    "type": "api_call",
-    "call": "puffish_skills:open_screen"
+    "type": "key_press",
+    "key_binding": "key.puffish_skills.open"
   },
   "tooltip": "tooltip.legendarytabs.tab.pufferfish_skills.description",
   "required_mods": [

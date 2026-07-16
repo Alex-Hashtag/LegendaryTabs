@@ -1,20 +1,20 @@
 {
-  "id": "journey_map",
+  "id": "passive_skill_tree",
   "enabled": true,
   "icon": {
     "type": "texture",
-    "texture": "legendarytabs:textures/gui/map_atlases.png",
+    "texture": "legendarytabs:textures/gui/idk1.png",
     "u": 0,
     "v": 0
   },
   "screen_open_action": {
     "type": "key_press",
-    "key_binding": "key.journeymap.map_toggle",
+    "key_binding": "key.display_skill_tree",
     "close_screen_first": true
   },
-  "tooltip": "tooltip.legendarytabs.tab.journey_map.description",
+  "tooltip": "tooltip.legendarytabs.tab.passive_skill_tree.description",
   "required_mods": [
-    "journeymap"
+    "skilltree"
   ],
   "screen_patterns": [
     "*"

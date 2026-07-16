@@ -18,20 +18,24 @@ public class IntegrationUtils {
     public IntegrationUtils(){}
 
     public static int getBackpackWidth(Player player) {
-        if (!LegendaryTabs.backpackedLoaded)
+        if (!LegendaryTabs.backpackedLoaded || !Services.BACKPACK.isBackpackVisible(player))
             return 0;
 
         ItemStack backpack = Services.BACKPACK.getBackpackStack(player);
-        BackpackItem backpackItem = (BackpackItem)backpack.getItem();
+        if (backpack.isEmpty() || !(backpack.getItem() instanceof BackpackItem backpackItem))
+            return 14 + 9 * 18;
+
         return 14 + Math.max(backpackItem.getColumnCount(), 9) * 18;
     }
 
     public static int getBackpackHeight(Player player) {
-        if (!LegendaryTabs.backpackedLoaded)
+        if (!LegendaryTabs.backpackedLoaded || !Services.BACKPACK.isBackpackVisible(player))
             return 0;
 
         ItemStack backpack = Services.BACKPACK.getBackpackStack(player);
-        BackpackItem backpackItem = (BackpackItem)backpack.getItem();
+        if (backpack.isEmpty() || !(backpack.getItem() instanceof BackpackItem backpackItem))
+            return 114 + 4 * 18;
+
         return 114 + backpackItem.getRowCount() * 18;
     }
 

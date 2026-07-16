@@ -5,11 +5,15 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import sfiomn.legendarytabs.LegendaryTabs;
 import sfiomn.legendarytabs.api.tabs_menu.TabData;
+import sfiomn.legendarytabs.network.LegendaryTabsNetwork;
+import sfiomn.legendarytabs.network.SyncTabsPacket;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,26 +23,29 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
     private static TabDataLoader INSTANCE;
     
     private final Map<String, TabData> loadedTabs = new HashMap<>();
-    
+    private Map<ResourceLocation, String> rawJson = new HashMap<>();
+
     public TabDataLoader() {
         super(GSON, "tabs");
         INSTANCE = this;
         LegendaryTabs.LOGGER.info("TabDataLoader constructor called");
     }
-    
+
     public static TabDataLoader getInstance() {
         return INSTANCE;
     }
-    
+
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> preparations, ResourceManager resourceManager, ProfilerFiller profiler) {
         LegendaryTabs.LOGGER.info("TabDataLoader.apply() called with {} preparations", preparations.size());
         loadedTabs.clear();
-        
+        rawJson = new HashMap<>(preparations.size());
+
         for (Map.Entry<ResourceLocation, JsonElement> entry : preparations.entrySet()) {
             ResourceLocation location = entry.getKey();
             JsonObject json = entry.getValue().getAsJsonObject();
-            
+            rawJson.put(location, GSON.toJson(entry.getValue()));
+
             try {
                 TabData tabData = parseTabData(location, json);
                 loadedTabs.put(tabData.getId(), tabData);
@@ -47,14 +54,36 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
                 LegendaryTabs.LOGGER.error("Failed to parse tab data from {}", location, e);
             }
         }
-        
+
         LegendaryTabs.LOGGER.info("Loaded {} tab configurations", loadedTabs.size());
-        
-        // Notify TabRegistry to reload tabs from the loaded data
-        TabRegistry.getInstance().reloadTabs();
+
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server != null && !rawJson.isEmpty()) {
+            LegendaryTabsNetwork.syncTabsToAll(new SyncTabsPacket(rawJson));
+        }
     }
-    
-    private TabData parseTabData(ResourceLocation location, JsonObject json) {
+
+    public void loadFromStrings(Map<ResourceLocation, String> tabsJson) {
+        loadedTabs.clear();
+        rawJson = new HashMap<>(tabsJson);
+        for (Map.Entry<ResourceLocation, String> entry : tabsJson.entrySet()) {
+            try {
+                JsonObject json = GSON.fromJson(entry.getValue(), JsonObject.class);
+                TabData tabData = parseTabData(entry.getKey(), json);
+                loadedTabs.put(tabData.getId(), tabData);
+                LegendaryTabs.LOGGER.info("Loaded synced tab data: {}", tabData.getId());
+            } catch (Exception e) {
+                LegendaryTabs.LOGGER.error("Failed to parse synced tab data from {}", entry.getKey(), e);
+            }
+        }
+        LegendaryTabs.LOGGER.info("Loaded {} synced tab configurations", loadedTabs.size());
+    }
+
+    public Map<ResourceLocation, String> getRawJson() {
+        return new HashMap<>(rawJson);
+    }
+
+    public TabData parseTabData(ResourceLocation location, JsonObject json) {
         String id = json.get("id").getAsString();
         boolean enabled = json.has("enabled") ? json.get("enabled").getAsBoolean() : true;
         
@@ -158,6 +187,18 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
                 String callName = actionJson.get("call").getAsString();
                 return TabData.ScreenOpenAction.apiCall(callName);
             }
+            case "reflection" -> {
+                String className = actionJson.get("class_name").getAsString();
+                String methodName = actionJson.get("method_name").getAsString();
+                boolean isStatic = actionJson.has("static") && actionJson.get("static").getAsBoolean();
+                boolean closeScreenFirst = actionJson.has("close_screen_first") && actionJson.get("close_screen_first").getAsBoolean();
+                return TabData.ScreenOpenAction.reflection(className, methodName, isStatic, closeScreenFirst);
+            }
+            case "command" -> {
+                String command = actionJson.get("command").getAsString();
+                boolean closeScreenFirst = actionJson.has("close_screen_first") && actionJson.get("close_screen_first").getAsBoolean();
+                return TabData.ScreenOpenAction.command(command, closeScreenFirst);
+            }
             default -> throw new IllegalArgumentException("Unknown action type: " + type);
         }
     }
@@ -170,8 +211,20 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
             case "item_in_inventory" -> TabData.EnabledCondition.ConditionType.ITEM_IN_INVENTORY;
             case "item_in_hotbar" -> TabData.EnabledCondition.ConditionType.ITEM_IN_HOTBAR;
             case "item_in_curio" -> TabData.EnabledCondition.ConditionType.ITEM_IN_CURIO;
+            case "or" -> TabData.EnabledCondition.ConditionType.OR;
             default -> throw new IllegalArgumentException("Unknown condition type: " + type);
         };
+
+        if (condType == TabData.EnabledCondition.ConditionType.OR) {
+            var subConditions = new java.util.ArrayList<TabData.EnabledCondition>();
+            if (condJson.has("conditions")) {
+                for (JsonElement element : condJson.getAsJsonArray("conditions")) {
+                    subConditions.add(parseEnabledCondition(element.getAsJsonObject()));
+                }
+            }
+            return new TabData.EnabledCondition(condType, null, null, subConditions);
+        }
+
         return new TabData.EnabledCondition(condType, item, curioSlot);
     }
 

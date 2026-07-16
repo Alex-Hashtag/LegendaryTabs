@@ -5,8 +5,15 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.registries.ForgeRegistries;
 import sfiomn.legendarytabs.LegendaryTabs;
@@ -15,7 +22,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Pattern;
 
 public class DataDrivenTabBase extends TabBase {
@@ -42,6 +48,12 @@ public class DataDrivenTabBase extends TabBase {
     @Override
     public void openTargetScreen(Player player) {
         LegendaryTabs.LOGGER.info("openTargetScreen() called for tab: {} by player: {}", tabData.getId(), player.getName().getString());
+
+        if (!isEnabled(player)) {
+            player.sendSystemMessage(Component.translatable("message.legendarytabs.tab_unavailable"));
+            return;
+        }
+
         TabData.ScreenOpenAction action = tabData.getScreenOpenAction();
         
         switch (action.getType()) {
@@ -70,28 +82,81 @@ public class DataDrivenTabBase extends TabBase {
                 action.getScreenClassName().ifPresent(this::openScreenByClassName);
             }
             case API_CALL -> {
-                action.getApiCallName().ifPresent(this::executeApiCall);
+                action.getApiCallName().ifPresent(callName -> executeApiCall(callName, player));
+            }
+            case REFLECTION -> {
+                action.getReflectionClassName().ifPresent(className ->
+                    action.getReflectionMethodName().ifPresent(methodName ->
+                        executeReflectionCall(className, methodName, action.isReflectionStatic(), action.isCloseScreenFirst())
+                    )
+                );
+            }
+            case COMMAND -> {
+                action.getCommand().ifPresent(command -> executeCommand(command, action.isCloseScreenFirst()));
             }
         }
     }
 
-    private void executeApiCall(String callName) {
+    private void executeApiCall(String callName, Player player) {
+        LegendaryTabs.LOGGER.warn("api_call '{}' is no longer supported; migrate the tab to key_press or right_click_item", callName);
+    }
+
+    private void executeReflectionCall(String className, String methodName, boolean isStatic, boolean closeScreenFirst) {
         try {
-            switch (callName) {
-                case "journeymap:open_fullscreen_map" -> {
-                    Minecraft.getInstance().setScreen(null);
-                    journeymap.client.ui.UIManager.INSTANCE.openFullscreenMap();
+            LegendaryTabs.LOGGER.info("Executing reflection action: {}#{} (static={})", className, methodName, isStatic);
+
+            Runnable callTask = () -> {
+                try {
+                    doReflectionCall(className, methodName, isStatic);
+                } catch (Exception e) {
+                    LegendaryTabs.LOGGER.warn("Failed reflection call: {}#{}", className, methodName, e);
                 }
-                case "puffish_skills:open_screen" -> {
-                    net.puffish.skillsmod.client.SkillsClientMod.getInstance().openScreen(Optional.empty());
-                }
-                case "travelersbackpack:open_backpack" -> {
-                    com.tiviacz.travelersbackpack.network.ServerboundActionTagPacket.create(1, new Object[0]);
-                }
-                default -> LegendaryTabs.LOGGER.warn("Unknown api_call: {}", callName);
+            };
+
+            if (closeScreenFirst) {
+                Minecraft.getInstance().setScreen(null);
+                Minecraft.getInstance().execute(() -> Minecraft.getInstance().execute(callTask));
+            } else {
+                callTask.run();
             }
         } catch (Exception e) {
-            LegendaryTabs.LOGGER.warn("Failed to execute api_call: {}", callName, e);
+            LegendaryTabs.LOGGER.warn("Failed to schedule reflection call: {}#{}", className, methodName, e);
+        }
+    }
+
+    private void doReflectionCall(String className, String methodName, boolean isStatic) throws Exception {
+        Class<?> clazz = Class.forName(className);
+        java.lang.reflect.Method method = clazz.getMethod(methodName);
+        if (isStatic) {
+            method.invoke(null);
+        } else {
+            Object instance = clazz.getDeclaredConstructor().newInstance();
+            method.invoke(instance);
+        }
+        LegendaryTabs.LOGGER.info("Reflection call succeeded: {}#{} (static={})", className, methodName, isStatic);
+    }
+
+    private void executeCommand(String command, boolean closeScreenFirst) {
+        try {
+            LegendaryTabs.LOGGER.info("Executing command action: /{}", command);
+
+            if (closeScreenFirst) {
+                Minecraft.getInstance().setScreen(null);
+            }
+
+            if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.connection != null) {
+                Minecraft.getInstance().player.connection.send(new net.minecraft.network.protocol.game.ServerboundChatCommandPacket(
+                        command,
+                        java.time.Instant.now(),
+                        0L,
+                        net.minecraft.commands.arguments.ArgumentSignatures.EMPTY,
+                        new net.minecraft.network.chat.LastSeenMessages.Update(0, new java.util.BitSet(20))
+                ));
+            } else {
+                LegendaryTabs.LOGGER.warn("Cannot execute command /{}: player or connection is null", command);
+            }
+        } catch (Exception e) {
+            LegendaryTabs.LOGGER.warn("Failed to execute command: /{}", command, e);
         }
     }
 
@@ -109,52 +174,25 @@ public class DataDrivenTabBase extends TabBase {
     private void simulateKeyPress(String keyBinding, boolean closeScreenFirst) {
         try {
             LegendaryTabs.LOGGER.info("Attempting to simulate key press for: {}", keyBinding);
-            
-            if (closeScreenFirst) {
-                Minecraft.getInstance().setScreen(null);
-                // Double-defer: first execute() runs end-of-current-tick (screen closes),
-                // second execute() runs next tick when screen is fully null for mod handlers
-                Minecraft.getInstance().execute(() -> Minecraft.getInstance().execute(() -> {
-                    try {
-                        LegendaryTabs.LOGGER.info("Executing delayed key press for: {}", keyBinding);
-                        net.minecraft.client.KeyMapping keyMapping = findKeyMapping(keyBinding);
-                        if (keyMapping != null) {
-                            simulateActualKeyPress(keyMapping);
-                        } else {
-                            LegendaryTabs.LOGGER.warn("KeyMapping not found: {}", keyBinding);
-                        }
-                    } catch (Exception e) {
-                        LegendaryTabs.LOGGER.warn("Failed to execute delayed key press for: " + keyBinding, e);
-                    }
-                }));
+
+            net.minecraft.client.KeyMapping keyMapping = findKeyMapping(keyBinding);
+            if (keyMapping == null) {
+                LegendaryTabs.LOGGER.warn("KeyMapping not found: {}", keyBinding);
                 return;
             }
-            
-            // Schedule key press for next tick to allow screen to fully close
-            Minecraft.getInstance().execute(() -> {
-                try {
-                    LegendaryTabs.LOGGER.info("Executing delayed key press for: {}", keyBinding);
-                    
-                    // Find the keybinding in Minecraft's registry
-                    net.minecraft.client.KeyMapping keyMapping = findKeyMapping(keyBinding);
-                    if (keyMapping != null) {
-                        LegendaryTabs.LOGGER.info("Found key mapping, simulating press");
-                        // Instead of consumeClick(), we need to simulate actual key press
-                        simulateActualKeyPress(keyMapping);
-                    } else {
-                        LegendaryTabs.LOGGER.warn("KeyMapping not found: {}", keyBinding);
-                        // Try alternative key mapping search approaches
-                        if (tryAlternativeKeyMappingSearch(keyBinding)) {
-                            LegendaryTabs.LOGGER.info("Successfully found and activated key mapping via alternative search");
-                        } else {
-                            LegendaryTabs.LOGGER.error("Key mapping not found in any registry: {}", keyBinding);
-                        }
-                    }
-                } catch (Exception e) {
-                    LegendaryTabs.LOGGER.warn("Failed to execute delayed key press for: " + keyBinding, e);
+
+            InputConstants.Key key = keyMapping.getKey();
+            boolean hasKey = key != null && key != InputConstants.UNKNOWN;
+            boolean activeBinding = hasKey && isActiveBinding(keyMapping, key);
+
+            MinecraftForge.EVENT_BUS.register(new OneShotClientTickListener(TickEvent.Phase.START, () -> {
+                if (closeScreenFirst) {
+                    Minecraft.getInstance().setScreen(null);
                 }
-            });
-            
+            }));
+            MinecraftForge.EVENT_BUS.register(new OneShotClientTickListener(TickEvent.Phase.END, () ->
+                    applySimulatedKeyPress(keyMapping, key, activeBinding)
+            ));
         } catch (Exception e) {
             LegendaryTabs.LOGGER.warn("Failed to simulate key press for: " + keyBinding, e);
         }
@@ -184,133 +222,129 @@ public class DataDrivenTabBase extends TabBase {
         return null;
     }
 
-    private void simulateActualKeyPress(net.minecraft.client.KeyMapping keyMapping) {
-        try {
-            LegendaryTabs.LOGGER.info("Simulating actual key press for: {}", keyMapping.getName());
-            
-            // Check if the key binding has an actual key assigned
-            boolean hasKey = keyMapping.getKey() != null && 
-                           !keyMapping.getKey().equals(com.mojang.blaze3d.platform.InputConstants.UNKNOWN);
-            
-            if (hasKey) {
-                // Use the static click method to register clicks - DON'T consume them
-                // Let the mod's normal tick handlers consume them naturally
-                net.minecraft.client.KeyMapping.click(keyMapping.getKey());
-                LegendaryTabs.LOGGER.info("Registered click for bound key: {}", keyMapping.getKey().getName());
-            } else {
-                // For unbound keys, we need to directly increment the click counter
-                // Access the clickCount field via reflection
-                try {
-                    var clickCountField = net.minecraft.client.KeyMapping.class.getDeclaredField("clickCount");
-                    clickCountField.setAccessible(true);
-                    int currentClicks = clickCountField.getInt(keyMapping);
-                    clickCountField.setInt(keyMapping, currentClicks + 1);
-                    LegendaryTabs.LOGGER.info("Directly incremented click count for unbound key: {} (now {})", 
-                                            keyMapping.getName(), currentClicks + 1);
-                } catch (Exception e) {
-                    LegendaryTabs.LOGGER.warn("Failed to increment click count via reflection: {}", e.getMessage());
-                }
-            }
-            
-            // Set as momentarily pressed for mods that check isDown()
-            // This works regardless of whether a physical key is bound
-            keyMapping.setDown(true);
-            
-            // Schedule the key release for next tick to simulate a real key press/release cycle
-            Minecraft.getInstance().execute(() -> {
-                keyMapping.setDown(false);
-                LegendaryTabs.LOGGER.info("Key release scheduled for: {}", keyMapping.getName());
-            });
-            
-            LegendaryTabs.LOGGER.info("Key press simulation completed for: {} - clicks available for mod handlers", keyMapping.getName());
-        } catch (Exception e) {
-            LegendaryTabs.LOGGER.warn("Failed to simulate actual key press: {}", e.getMessage());
+
+    private void applySimulatedKeyPress(net.minecraft.client.KeyMapping keyMapping, InputConstants.Key key, boolean activeBinding) {
+        if (activeBinding) {
+            // Standard Forge static path. This is what a real physical key press goes through:
+            // it updates the KeyMapping instance that mods reference via KeyMapping.ALL / options.
+            net.minecraft.client.KeyMapping.click(key);
+            net.minecraft.client.KeyMapping.set(key, true);
+            LegendaryTabs.LOGGER.info("Registered press via Forge static path for key: {}", key.getName());
+        } else {
+            // Unbound, or a binding whose key is claimed by another KeyMapping in the static MAP.
+            // The static path would hit the wrong mapping (or no mapping), so manipulate the
+            // KeyMapping instance directly. This ensures consumeClick() and isDown() still work
+            // regardless of whether the binding has a physical key assigned.
+            incrementClickCount(keyMapping);
+            LegendaryTabs.LOGGER.info("Registered press via direct instance manipulation for: {}", keyMapping.getName());
         }
+
+        // Always mark the binding as held for mods that check isDown() on the instance itself.
+        keyMapping.setDown(true);
+
+        // Fire the raw input event for any binding with a real key so mods that listen to
+        // InputEvent.Key (e.g. JourneyMap, Pufferfish's Skills) also detect the press.
+        if (key != InputConstants.UNKNOWN) {
+            try {
+                MinecraftForge.EVENT_BUS.post(new InputEvent.Key(key.getValue(), 0, 1, 0));
+                LegendaryTabs.LOGGER.debug("Posted InputEvent.Key for: {}", keyMapping.getName());
+            } catch (Exception e) {
+                LegendaryTabs.LOGGER.debug("Failed to post InputEvent.Key for {}: {}", keyMapping.getName(), e.getMessage());
+            }
+        }
+
+        LegendaryTabs.LOGGER.info("Key press simulation completed for: {}", keyMapping.getName());
+
+        // Hold the press for the remainder of this tick, then release at the end so mod tick
+        // handlers have a full tick to observe isDown/consumeClick before it is cleared.
+        MinecraftForge.EVENT_BUS.register(new OneShotClientTickListenerLowest(TickEvent.Phase.END, () -> {
+            keyMapping.setDown(false);
+            if (activeBinding) {
+                net.minecraft.client.KeyMapping.set(key, false);
+            }
+            LegendaryTabs.LOGGER.debug("Released simulated press for: {}", keyMapping.getName());
+        }));
     }
 
-    private boolean tryAlternativeKeyMappingSearch(String keyBinding) {
+    private boolean isActiveBinding(net.minecraft.client.KeyMapping keyMapping, InputConstants.Key key) {
         try {
-            LegendaryTabs.LOGGER.info("Trying alternative key mapping search for: {}", keyBinding);
-            
-            // Try searching in KeyMapping.ALL static field via reflection
-            if (tryKeyMappingAllField(keyBinding)) return true;
-            
-            // Try searching through client options more thoroughly
-            if (tryExtensiveOptionsSearch(keyBinding)) return true;
-            
-            // Try searching loaded mods' key mappings
-            if (tryModKeyMappingSearch(keyBinding)) return true;
-            
-        } catch (Exception e) {
-            LegendaryTabs.LOGGER.debug("Alternative key mapping search failed: {}", e.getMessage());
-        }
-        return false;
-    }
-    
-    private boolean tryKeyMappingAllField(String keyBinding) {
-        try {
-            // Access KeyMapping.ALL via reflection
-            var keyMappingClass = net.minecraft.client.KeyMapping.class;
-            var allField = keyMappingClass.getDeclaredField("ALL");
-            allField.setAccessible(true);
-            
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, net.minecraft.client.KeyMapping> allMappings = 
-                (java.util.Map<String, net.minecraft.client.KeyMapping>) allField.get(null);
-            
-            LegendaryTabs.LOGGER.info("Found {} key mappings in KeyMapping.ALL", allMappings.size());
-            LegendaryTabs.LOGGER.debug("Available key mappings: {}", allMappings.keySet());
-            
-            var mapping = allMappings.get(keyBinding);
-            if (mapping != null) {
-                LegendaryTabs.LOGGER.info("Found key mapping in KeyMapping.ALL: {}", keyBinding);
-                simulateActualKeyPress(mapping);
-                return true;
-            }
-            
-        } catch (Exception e) {
-            LegendaryTabs.LOGGER.debug("KeyMapping.ALL search failed: {}", e.getMessage());
-        }
-        return false;
-    }
-    
-    private boolean tryExtensiveOptionsSearch(String keyBinding) {
-        try {
-            // Search through all fields in Options, not just KeyMapping fields
-            var options = Minecraft.getInstance().options;
-            var allFields = options.getClass().getDeclaredFields();
-            
-            for (var field : allFields) {
-                field.setAccessible(true);
-                var value = field.get(options);
-                
-                if (value instanceof net.minecraft.client.KeyMapping mapping) {
-                    if (keyBinding.equals(mapping.getName())) {
-                        LegendaryTabs.LOGGER.info("Found key mapping in options field {}: {}", field.getName(), keyBinding);
-                        simulateActualKeyPress(mapping);
-                        return true;
-                    }
-                }
+            var mapField = net.minecraft.client.KeyMapping.class.getDeclaredField("MAP");
+            mapField.setAccessible(true);
+            Object map = mapField.get(null);
+            if (map instanceof net.minecraftforge.client.settings.KeyMappingLookup lookup) {
+                // Forge 1.20+ stores bindings in a KeyMappingLookup that handles conflict contexts/modifiers.
+                // If our mapping is among the active ones for this key, the standard Forge path will update it.
+                return lookup.getAll(key).contains(keyMapping);
+            } else if (map instanceof java.util.Map<?, ?> rawMap) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<InputConstants.Key, net.minecraft.client.KeyMapping> typedMap =
+                        (java.util.Map<InputConstants.Key, net.minecraft.client.KeyMapping>) rawMap;
+                return typedMap.get(key) == keyMapping;
             }
         } catch (Exception e) {
-            LegendaryTabs.LOGGER.debug("Extensive options search failed: {}", e.getMessage());
+            LegendaryTabs.LOGGER.debug("Failed to check active binding for {}: {}", keyMapping.getName(), e.getMessage());
         }
         return false;
     }
-    
-    private boolean tryModKeyMappingSearch(String keyBinding) {
-        // Generic search through loaded mod registries could be implemented here
-        // For now, return false to avoid hardcoded mod logic
-        return false;
+
+    private void incrementClickCount(net.minecraft.client.KeyMapping keyMapping) {
+        try {
+            var clickCountField = net.minecraft.client.KeyMapping.class.getDeclaredField("clickCount");
+            clickCountField.setAccessible(true);
+            int currentClicks = clickCountField.getInt(keyMapping);
+            clickCountField.setInt(keyMapping, currentClicks + 1);
+        } catch (Exception e) {
+            LegendaryTabs.LOGGER.warn("Failed to increment click count for {}: {}", keyMapping.getName(), e.getMessage());
+        }
     }
 
     private void simulateRightClickItem(ResourceLocation itemId, Player player) {
         var item = ForgeRegistries.ITEMS.getValue(itemId);
-        if (item != null) {
-            ItemStack itemStack = new ItemStack(item);
-            // Simulate right-click usage
-            itemStack.use(player.level(), player, player.getUsedItemHand());
+        if (item == null) return;
+
+        // Prefer a real right-click through the game mode if the item is currently held,
+        // so the server sees the use and any item-specific networking fires correctly.
+        if (player.getMainHandItem().is(item) && player.level().isClientSide
+                && Minecraft.getInstance().gameMode != null) {
+            Minecraft.getInstance().gameMode.useItem(player, InteractionHand.MAIN_HAND);
+            return;
         }
+        if (player.getOffhandItem().is(item) && player.level().isClientSide
+                && Minecraft.getInstance().gameMode != null) {
+            Minecraft.getInstance().gameMode.useItem(player, InteractionHand.OFF_HAND);
+            return;
+        }
+
+        // Fallback: find the item somewhere in inventory/curio and call use() on a copy.
+        ItemStack held = findItemStack(itemId, player);
+        if (held == null) held = new ItemStack(item);
+        held.use(player.level(), player, InteractionHand.MAIN_HAND);
+    }
+
+    private ItemStack findItemStack(ResourceLocation itemId, Player player) {
+        for (ItemStack stack : player.getInventory().items) {
+            ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+            if (id != null && id.equals(itemId)) return stack;
+        }
+        if (LegendaryTabs.curiosLoaded) {
+            try {
+                var helper = top.theillusivec4.curios.api.CuriosApi.getCuriosHelper();
+                var lazyOpt = helper.getCuriosHandler(player);
+                if (lazyOpt.isPresent()) {
+                    var handler = lazyOpt.resolve().get();
+                    for (var entry : handler.getCurios().entrySet()) {
+                        var stacksHandler = entry.getValue().getStacks();
+                        for (int i = 0; i < stacksHandler.getSlots(); i++) {
+                            ItemStack stack = stacksHandler.getStackInSlot(i);
+                            ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+                            if (id != null && id.equals(itemId)) return stack;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
     }
 
     private void executeCustomAction(String customAction) {
@@ -385,6 +419,12 @@ public class DataDrivenTabBase extends TabBase {
                     }
                 } catch (Exception e) {
                     LegendaryTabs.LOGGER.debug("Error checking curio condition for tab {}: {}", tabData.getId(), e.getMessage());
+                }
+                yield false;
+            }
+            case OR -> {
+                for (TabData.EnabledCondition subCondition : condition.getSubConditions()) {
+                    if (checkEnabledCondition(subCondition, player)) yield true;
                 }
                 yield false;
             }
@@ -581,5 +621,41 @@ public class DataDrivenTabBase extends TabBase {
 
     public TabData getTabData() {
         return tabData;
+    }
+
+    private static class OneShotClientTickListener {
+        private final TickEvent.Phase phase;
+        private final Runnable task;
+
+        OneShotClientTickListener(TickEvent.Phase phase, Runnable task) {
+            this.phase = phase;
+            this.task = task;
+        }
+
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public void onClientTick(TickEvent.ClientTickEvent event) {
+            if (event.phase == this.phase) {
+                task.run();
+                MinecraftForge.EVENT_BUS.unregister(this);
+            }
+        }
+    }
+
+    private static class OneShotClientTickListenerLowest {
+        private final TickEvent.Phase phase;
+        private final Runnable task;
+
+        OneShotClientTickListenerLowest(TickEvent.Phase phase, Runnable task) {
+            this.phase = phase;
+            this.task = task;
+        }
+
+        @SubscribeEvent(priority = EventPriority.LOWEST)
+        public void onClientTick(TickEvent.ClientTickEvent event) {
+            if (event.phase == this.phase) {
+                task.run();
+                MinecraftForge.EVENT_BUS.unregister(this);
+            }
+        }
     }
 }

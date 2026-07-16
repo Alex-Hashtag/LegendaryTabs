@@ -33,7 +33,7 @@ public class XaerosMapTab extends TabBase {
 
     @Override
     public void openTargetScreen(Player player) {
-        Minecraft.getInstance().setScreen(new GuiMap((Screen)null, (Screen)null, WorldMapSession.getCurrentSession().getMapProcessor(), Minecraft.getInstance().getCameraEntity()));
+//        Minecraft.getInstance().setScreen(new GuiMap((Screen)null, (Screen)null, WorldMapSession.getCurrentSession().getMapProcessor(), Minecraft.getInstance().getCameraEntity()));
     }
 
     @Override

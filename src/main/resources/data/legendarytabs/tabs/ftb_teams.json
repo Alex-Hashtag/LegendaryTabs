@@ -8,8 +8,10 @@
     "v": 0
   },
   "screen_open_action": {
-    "type": "key_press",
-    "key_binding": "key.ftbteams.open_gui"
+    "type": "reflection",
+    "class_name": "dev.ftb.mods.ftbteams.net.OpenGUIMessage",
+    "method_name": "sendToServer",
+    "static": false
   },
   "tooltip": "tooltip.legendarytabs.tab.ftb_teams.description",
   "required_mods": [

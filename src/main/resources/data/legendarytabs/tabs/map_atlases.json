@@ -1,0 +1,37 @@
+{
+  "id": "map_atlases",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/map_atlases.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "key.map_atlases.open_minimap"
+  },
+  "tooltip": "tooltip.legendarytabs.tab.map_atlases.description",
+  "required_mods": [
+    "map_atlases"
+  ],
+  "enabled_conditions": [
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "item_in_inventory",
+          "item": "map_atlases:atlas"
+        },
+        {
+          "type": "item_in_curio",
+          "item": "map_atlases:atlas",
+          "curio_slot": "hands"
+        }
+      ]
+    }
+  ],
+  "screen_patterns": [
+    "*"
+  ]
+}

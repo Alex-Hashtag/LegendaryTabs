@@ -8,8 +8,8 @@
     "v": 0
   },
   "screen_open_action": {
-    "type": "api_call",
-    "call": "travelersbackpack:open_backpack"
+    "type": "key_press",
+    "key_binding": "key.travelersbackpack.inventory"
   },
   "tooltip": "tooltip.legendarytabs.tab.backpack.description",
   "required_mods": [

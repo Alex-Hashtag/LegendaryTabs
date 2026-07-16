@@ -8,16 +8,21 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.event.AddReloadListenerEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 import sfiomn.legendarytabs.api.tabs_menu.TabsMenu;
 import sfiomn.legendarytabs.client.tabs_menu.*;
 import sfiomn.legendarytabs.config.Config;
 import sfiomn.legendarytabs.data.TabDataLoader;
 import sfiomn.legendarytabs.data.TabRegistry;
+import sfiomn.legendarytabs.network.LegendaryTabsNetwork;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -61,7 +66,26 @@ public class LegendaryTabs
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
 
+        LegendaryTabsNetwork.register();
+
         modIntegration(forgeBus);
+    }
+
+    @SubscribeEvent
+    public void onAddReloadListener(AddReloadListenerEvent event) {
+        LegendaryTabs.LOGGER.info("Registering TabDataLoader as server datapack reload listener");
+        event.addListener(new TabDataLoader());
+    }
+
+    @SubscribeEvent
+    public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            TabDataLoader loader = TabDataLoader.getInstance();
+            if (loader != null && !loader.getRawJson().isEmpty()) {
+                LegendaryTabs.LOGGER.info("Syncing data-driven tabs to newly joined player");
+                LegendaryTabsNetwork.syncTabsToPlayer(new sfiomn.legendarytabs.network.SyncTabsPacket(loader.getRawJson()), serverPlayer);
+            }
+        }
     }
 
     private void modIntegration(IEventBus forgeBus)
@@ -159,23 +183,10 @@ public class LegendaryTabs
             Config.Baked.bakeClient();
             TabsMenu.register(new InventoryTab());
             
-            // Ensure TabDataLoader is instantiated
-            LOGGER.info("Initializing TabDataLoader during client setup");
-            if (TabDataLoader.getInstance() == null) {
-                LOGGER.info("TabDataLoader not yet instantiated, creating now");
-                new TabDataLoader();
-            }
-            
-            // Manual trigger for datapack loading since resource events might not fire on first startup
-            LOGGER.info("Manually triggering datapack tab loading during client setup");
-            event.enqueueWork(() -> {
-                // This runs after client setup is complete
-                TabRegistry.getInstance().reloadTabs();
-                LOGGER.info("Completed manual datapack tab loading");
-            });
+            // Data-driven tabs are loaded from server datapacks and synced to the client via network.
+            // The TabDataLoader instance is created on the client when the first sync packet arrives.
 
-            if (LegendaryTabs.backpackedLoaded)
-                TabsMenu.register(new BackpackedTab());
+            // BackpackedTab is now data-driven via JSON datapacks
             // if (LegendaryTabs.travelersBackpackLoaded)
                 // TravelersBackpackTab is now data-driven via JSON datapacks
             // if (LegendaryTabs.legendarySurvivalOverhaulLoaded)
@@ -188,16 +199,16 @@ public class LegendaryTabs
                 // ReskillableTab is now data-driven via JSON datapacks
             // if (LegendaryTabs.reskillableReimaginedLoaded)
                 // ReskillableReimaginedTab is now data-driven via JSON datapacks
-            if (LegendaryTabs.mapAtlasesLoaded) 
-                TabsMenu.register(new MapAtlasesTab());
+            // if (LegendaryTabs.mapAtlasesLoaded)
+            //     MapAtlasesTab is now data-driven via JSON datapacks
             // if (LegendaryTabs.xaerosMapLoaded)
                 // XaerosMapTab is now data-driven via JSON datapacks
             // if (LegendaryTabs.journeyMapLoaded)
                 // JourneyMapTab is now data-driven via JSON datapacks
 //            if (LegendaryTabs.dietLoaded)
 //                TabsMenu.register(new DietTab());
-            if (LegendaryTabs.passiveSkillTreeLoaded)
-                TabsMenu.register(new PassiveSkillTreeTab());
+            // if (LegendaryTabs.passiveSkillTreeLoaded)
+            //     PassiveSkillTreeTab is now data-driven via JSON datapacks
             // if (LegendaryTabs.pufferfishsSkillsLoaded)
                 // PufferfishsSkillsTab is now data-driven via JSON datapacks
         }

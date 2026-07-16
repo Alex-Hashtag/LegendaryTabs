@@ -92,32 +92,54 @@ public class TabData {
         private final String customAction;
         private final boolean closeScreenFirst;
 
-        private ScreenOpenAction(ActionType type, String keyBinding, ResourceLocation itemToUse, String customAction, boolean closeScreenFirst) {
+        // Reflection action fields
+        private final String reflectionClassName;
+        private final String reflectionMethodName;
+        private final boolean reflectionStatic;
+
+        // Command action field
+        private final String command;
+
+        private ScreenOpenAction(ActionType type, String keyBinding, ResourceLocation itemToUse, String customAction,
+                                 boolean closeScreenFirst, String reflectionClassName, String reflectionMethodName,
+                                 boolean reflectionStatic, String command) {
             this.type = type;
             this.keyBinding = keyBinding;
             this.itemToUse = itemToUse;
             this.customAction = customAction;
             this.closeScreenFirst = closeScreenFirst;
+            this.reflectionClassName = reflectionClassName;
+            this.reflectionMethodName = reflectionMethodName;
+            this.reflectionStatic = reflectionStatic;
+            this.command = command;
         }
 
         public static ScreenOpenAction keyPress(String keyBinding, boolean closeScreenFirst) {
-            return new ScreenOpenAction(ActionType.KEY_PRESS, keyBinding, null, null, closeScreenFirst);
+            return new ScreenOpenAction(ActionType.KEY_PRESS, keyBinding, null, null, closeScreenFirst, null, null, false, null);
         }
 
         public static ScreenOpenAction rightClickItem(ResourceLocation itemToUse) {
-            return new ScreenOpenAction(ActionType.RIGHT_CLICK_ITEM, null, itemToUse, null, false);
+            return new ScreenOpenAction(ActionType.RIGHT_CLICK_ITEM, null, itemToUse, null, false, null, null, false, null);
         }
 
         public static ScreenOpenAction custom(String customAction) {
-            return new ScreenOpenAction(ActionType.CUSTOM, null, null, customAction, false);
+            return new ScreenOpenAction(ActionType.CUSTOM, null, null, customAction, false, null, null, false, null);
         }
 
         public static ScreenOpenAction openScreen(String screenClassName) {
-            return new ScreenOpenAction(ActionType.OPEN_SCREEN, null, null, screenClassName, false);
+            return new ScreenOpenAction(ActionType.OPEN_SCREEN, null, null, screenClassName, false, null, null, false, null);
         }
 
         public static ScreenOpenAction apiCall(String callName) {
-            return new ScreenOpenAction(ActionType.API_CALL, null, null, callName, false);
+            return new ScreenOpenAction(ActionType.API_CALL, null, null, callName, false, null, null, false, null);
+        }
+
+        public static ScreenOpenAction reflection(String className, String methodName, boolean isStatic, boolean closeScreenFirst) {
+            return new ScreenOpenAction(ActionType.REFLECTION, null, null, null, closeScreenFirst, className, methodName, isStatic, null);
+        }
+
+        public static ScreenOpenAction command(String command, boolean closeScreenFirst) {
+            return new ScreenOpenAction(ActionType.COMMAND, null, null, null, closeScreenFirst, null, null, false, command);
         }
 
         public Optional<String> getApiCallName() { return Optional.ofNullable(customAction); }
@@ -129,12 +151,19 @@ public class TabData {
         public Optional<String> getCustomAction() { return Optional.ofNullable(customAction); }
         public Optional<String> getScreenClassName() { return Optional.ofNullable(customAction); }
 
+        public Optional<String> getReflectionClassName() { return Optional.ofNullable(reflectionClassName); }
+        public Optional<String> getReflectionMethodName() { return Optional.ofNullable(reflectionMethodName); }
+        public boolean isReflectionStatic() { return reflectionStatic; }
+        public Optional<String> getCommand() { return Optional.ofNullable(command); }
+
         public enum ActionType {
             KEY_PRESS,
             RIGHT_CLICK_ITEM,
             CUSTOM,
             OPEN_SCREEN,
-            API_CALL
+            API_CALL,
+            REFLECTION,
+            COMMAND
         }
     }
 
@@ -142,22 +171,30 @@ public class TabData {
         public enum ConditionType {
             ITEM_IN_INVENTORY,
             ITEM_IN_HOTBAR,
-            ITEM_IN_CURIO
+            ITEM_IN_CURIO,
+            OR
         }
 
         private final ConditionType type;
         private final String itemPattern;
         private final String curioSlot;
+        private final List<EnabledCondition> subConditions;
 
         public EnabledCondition(ConditionType type, String itemPattern, String curioSlot) {
+            this(type, itemPattern, curioSlot, List.of());
+        }
+
+        public EnabledCondition(ConditionType type, String itemPattern, String curioSlot, List<EnabledCondition> subConditions) {
             this.type = type;
             this.itemPattern = itemPattern;
             this.curioSlot = curioSlot;
+            this.subConditions = subConditions != null ? subConditions : List.of();
         }
 
         public ConditionType getType() { return type; }
         public String getItemPattern() { return itemPattern; }
         public Optional<String> getCurioSlot() { return Optional.ofNullable(curioSlot); }
+        public List<EnabledCondition> getSubConditions() { return subConditions; }
 
         public boolean matchesItem(ResourceLocation itemId) {
             if (itemPattern == null) return true;
