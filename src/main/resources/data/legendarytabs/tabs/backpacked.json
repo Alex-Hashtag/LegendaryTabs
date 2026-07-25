@@ -9,7 +9,7 @@
   },
   "screen_open_action": {
     "type": "key_press",
-    "key_binding": "key.backpacked.open_management",
+    "key_binding": "key.backpack",
     "close_screen_first": true
   },
   "tooltip": "tooltip.legendarytabs.tab.backpack.description",

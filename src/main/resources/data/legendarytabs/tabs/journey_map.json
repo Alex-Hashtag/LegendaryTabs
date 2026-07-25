@@ -8,8 +8,10 @@
     "v": 0
   },
   "screen_open_action": {
-    "type": "key_press",
-    "key_binding": "key.journeymap.map_toggle",
+    "type": "reflection",
+    "class_name": "journeymap.client.ui.UIManager",
+    "method_name": "openFullscreenMap",
+    "static": false,
     "close_screen_first": true
   },
   "tooltip": "tooltip.legendarytabs.tab.journey_map.description",
@@ -20,3 +22,4 @@
     "*"
   ]
 }
+

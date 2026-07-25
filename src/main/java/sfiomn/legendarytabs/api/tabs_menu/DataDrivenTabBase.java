@@ -27,7 +27,6 @@ import java.util.regex.Pattern;
 public class DataDrivenTabBase extends TabBase {
     protected final TabData tabData;
     private final List<Pattern> screenPatterns;
-    private static final Map<String, net.minecraft.client.KeyMapping> keyMappingCache = new HashMap<>();
 
     public DataDrivenTabBase(TabData tabData) {
         this.tabData = tabData;
@@ -57,15 +56,8 @@ public class DataDrivenTabBase extends TabBase {
         TabData.ScreenOpenAction action = tabData.getScreenOpenAction();
         
         switch (action.getType()) {
-            case KEY_PRESS -> {
-                action.getKeyBinding().ifPresent(keyBinding -> {
-                    try {
-                        simulateKeyPress(keyBinding, action.isCloseScreenFirst());
-                    } catch (Exception e) {
-                        LegendaryTabs.LOGGER.warn("Failed to simulate key press for binding: " + keyBinding, e);
-                    }
-                });
-            }
+            case KEY_PRESS -> action.getKeyBinding().ifPresent(keyBinding ->
+                    KeyPressSimulator.press(keyBinding, action.isCloseScreenFirst()));
             case RIGHT_CLICK_ITEM -> {
                 action.getItemToUse().ifPresent(itemId -> {
                     try {
@@ -130,10 +122,26 @@ public class DataDrivenTabBase extends TabBase {
         if (isStatic) {
             method.invoke(null);
         } else {
-            Object instance = clazz.getDeclaredConstructor().newInstance();
-            method.invoke(instance);
+            method.invoke(resolveInstance(clazz));
         }
         LegendaryTabs.LOGGER.info("Reflection call succeeded: {}#{} (static={})", className, methodName, isStatic);
+    }
+
+    /**
+     * Many mod-facing "manager" APIs are singletons exposed via a public static
+     * field (enum singletons like JourneyMap's UIManager.INSTANCE, or a plain
+     * "public static final X INSTANCE" constant) rather than a no-arg constructor.
+     * Prefer that field when present; only fall back to constructing a fresh
+     * instance for classes that are genuinely meant to be instantiated directly.
+     */
+    private Object resolveInstance(Class<?> clazz) throws Exception {
+        try {
+            java.lang.reflect.Field instanceField = clazz.getField("INSTANCE");
+            return instanceField.get(null);
+        } catch (NoSuchFieldException ignored) {
+            // not a singleton exposed this way - fall through
+        }
+        return clazz.getDeclaredConstructor().newInstance();
     }
 
     private void executeCommand(String command, boolean closeScreenFirst) {
@@ -171,56 +179,6 @@ public class DataDrivenTabBase extends TabBase {
         }
     }
 
-    private void simulateKeyPress(String keyBinding, boolean closeScreenFirst) {
-        try {
-            LegendaryTabs.LOGGER.info("Attempting to simulate key press for: {}", keyBinding);
-
-            net.minecraft.client.KeyMapping keyMapping = findKeyMapping(keyBinding);
-            if (keyMapping == null) {
-                LegendaryTabs.LOGGER.warn("KeyMapping not found: {}", keyBinding);
-                return;
-            }
-
-            InputConstants.Key key = keyMapping.getKey();
-            boolean hasKey = key != null && key != InputConstants.UNKNOWN;
-            boolean activeBinding = hasKey && isActiveBinding(keyMapping, key);
-
-            MinecraftForge.EVENT_BUS.register(new OneShotClientTickListener(TickEvent.Phase.START, () -> {
-                if (closeScreenFirst) {
-                    Minecraft.getInstance().setScreen(null);
-                }
-            }));
-            MinecraftForge.EVENT_BUS.register(new OneShotClientTickListener(TickEvent.Phase.END, () ->
-                    applySimulatedKeyPress(keyMapping, key, activeBinding)
-            ));
-        } catch (Exception e) {
-            LegendaryTabs.LOGGER.warn("Failed to simulate key press for: " + keyBinding, e);
-        }
-    }
-
-    private net.minecraft.client.KeyMapping findKeyMapping(String keyBindingName) {
-        if (keyMappingCache.containsKey(keyBindingName)) {
-            return keyMappingCache.get(keyBindingName);
-        }
-        try {
-            LegendaryTabs.LOGGER.debug("Looking for key mapping: {}", keyBindingName);
-            var allField = net.minecraft.client.KeyMapping.class.getDeclaredField("ALL");
-            allField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, net.minecraft.client.KeyMapping> allMappings =
-                (java.util.Map<String, net.minecraft.client.KeyMapping>) allField.get(null);
-            net.minecraft.client.KeyMapping mapping = allMappings.get(keyBindingName);
-            if (mapping != null) {
-                LegendaryTabs.LOGGER.info("Found and cached key mapping: {}", keyBindingName);
-                keyMappingCache.put(keyBindingName, mapping);
-                return mapping;
-            }
-            LegendaryTabs.LOGGER.warn("Key mapping not found: {}", keyBindingName);
-        } catch (Exception e) {
-            LegendaryTabs.LOGGER.warn("Error finding key mapping: " + keyBindingName, e);
-        }
-        return null;
-    }
 
 
     private void applySimulatedKeyPress(net.minecraft.client.KeyMapping keyMapping, InputConstants.Key key, boolean activeBinding) {
