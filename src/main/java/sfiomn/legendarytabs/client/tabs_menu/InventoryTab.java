@@ -16,9 +16,10 @@ import org.violetmoon.quark.addons.oddities.client.screen.BackpackInventoryScree
 import sfiomn.legendarysurvivaloverhaul.client.screens.BodyHealthScreen;
 import sfiomn.legendarytabs.LegendaryTabs;
 import sfiomn.legendarytabs.api.tabs_menu.TabBase;
+import sfiomn.legendarytabs.api.tabs_menu.TabData;
 import sfiomn.legendarytabs.api.tabs_menu.TabsMenu;
 import sfiomn.legendarytabs.config.Config;
-import sfiomn.legendarytabs.utils.IntegrationUtils;
+import sfiomn.legendarytabs.data.TabDataLoader;
 import top.theillusivec4.curios.client.gui.CuriosScreenV2;
 
 
@@ -82,12 +83,34 @@ public class InventoryTab extends TabBase {
             TabsMenu.addTabToScreen(this, GuiCosArmorInventory.class, (player) -> 176, (player) -> 166, 10);
 
         if (LegendaryTabs.backpackedLoaded)
-            TabsMenu.addTabToScreen(this, BackpackScreen.class, (IntegrationUtils::getBackpackWidth), (IntegrationUtils::getBackpackHeight), 10);
+            addDataDrivenSizedTab(BackpackScreen.class, "backpacked", 10);
 
         if (LegendaryTabs.travelersBackpackLoaded)
-            TabsMenu.addTabToScreen(this, com.tiviacz.travelersbackpack.client.screens.BackpackScreen.class, IntegrationUtils::getTravelersBackpackWidth, IntegrationUtils::getTravelersBackpackHeight, 10);
+            addDataDrivenSizedTab(com.tiviacz.travelersbackpack.client.screens.BackpackScreen.class, "travelers_backpack", 10);
 
         if (LegendaryTabs.dietLoaded)
-            TabsMenu.addTabToScreen(this, DietScreen.class, (player) -> 248, IntegrationUtils::getDietHeight, 10);
+            addDataDrivenSizedTab(DietScreen.class, "diet", 10);
+    }
+
+    /**
+     * Sizes this tab's button against a screen using the same JSON-declared width/height
+     * formula as that screen's own data-driven tab (see legendarytabs:tabs/{tabId}.json),
+     * so both buttons agree on the screen's real, per-player size.
+     */
+    private void addDataDrivenSizedTab(Class<? extends Screen> screenClass, String tabId, int priority) {
+        // Resolved lazily (per call) rather than once at registration time, since the
+        // JSON tab data is loaded/synced after this tab is registered at client setup.
+        TabsMenu.addTabToScreen(this, screenClass,
+                (player) -> screenSizeConfig(tabId, screenClass).getWidth(player),
+                (player) -> screenSizeConfig(tabId, screenClass).getHeight(player),
+                priority);
+    }
+
+    private static final TabData.ScreenSizeConfig DEFAULT_SCREEN_SIZE = new TabData.ScreenSizeConfig(176, 166, 10);
+
+    private TabData.ScreenSizeConfig screenSizeConfig(String tabId, Class<? extends Screen> screenClass) {
+        TabData tabData = TabDataLoader.getInstance() != null ? TabDataLoader.getInstance().getTabData(tabId) : null;
+        if (tabData == null) return DEFAULT_SCREEN_SIZE;
+        return tabData.getScreenSizes().getOrDefault(screenClass.getName(), DEFAULT_SCREEN_SIZE);
     }
 }

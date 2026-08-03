@@ -1,8 +1,10 @@
 package sfiomn.legendarytabs.api.tabs_menu;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -210,15 +212,113 @@ public class TabData {
         private final int width;
         private final int height;
         private final int priority;
+        private final Map<String, SizeVariable> variables;
+        private final String widthFormula;
+        private final String heightFormula;
 
         public ScreenSizeConfig(int width, int height, int priority) {
+            this(width, height, priority, Map.of(), null, null);
+        }
+
+        public ScreenSizeConfig(int width, int height, int priority, Map<String, SizeVariable> variables,
+                                 String widthFormula, String heightFormula) {
             this.width = width;
             this.height = height;
             this.priority = priority;
+            this.variables = variables != null ? variables : Map.of();
+            this.widthFormula = widthFormula;
+            this.heightFormula = heightFormula;
         }
 
         public int getWidth() { return width; }
         public int getHeight() { return height; }
         public int getPriority() { return priority; }
+        public Map<String, SizeVariable> getVariables() { return variables; }
+        public Optional<String> getWidthFormula() { return Optional.ofNullable(widthFormula); }
+        public Optional<String> getHeightFormula() { return Optional.ofNullable(heightFormula); }
+
+        public int getWidth(Player player) {
+            return widthFormula != null ? (int) Math.round(evaluate(widthFormula, player)) : width;
+        }
+
+        public int getHeight(Player player) {
+            return heightFormula != null ? (int) Math.round(evaluate(heightFormula, player)) : height;
+        }
+
+        private double evaluate(String formula, Player player) {
+            try {
+                Map<String, Double> resolved = new LinkedHashMap<>();
+                for (Map.Entry<String, SizeVariable> entry : variables.entrySet()) {
+                    resolved.put(entry.getKey(), entry.getValue().resolve(player, resolved));
+                }
+                return FormulaEvaluator.evaluate(formula, resolved);
+            } catch (Exception e) {
+                sfiomn.legendarytabs.LegendaryTabs.LOGGER.warn("Failed to evaluate tab size formula '{}': {}", formula, e.getMessage());
+                return 0;
+            }
+        }
+    }
+
+    public static class SizeVariable {
+        public enum Source { CONSTANT, ITEM_NBT, BUILTIN, FORMULA }
+
+        private final Source source;
+        private final double constantValue;
+        private final String locator;
+        private final String path;
+        private final ItemNbtResolver.ValueType valueType;
+        private final double defaultValue;
+        private final String builtinId;
+        private final String formulaExpr;
+
+        private SizeVariable(Source source, double constantValue, String locator, String path,
+                              ItemNbtResolver.ValueType valueType, double defaultValue,
+                              String builtinId, String formulaExpr) {
+            this.source = source;
+            this.constantValue = constantValue;
+            this.locator = locator;
+            this.path = path;
+            this.valueType = valueType;
+            this.defaultValue = defaultValue;
+            this.builtinId = builtinId;
+            this.formulaExpr = formulaExpr;
+        }
+
+        public static SizeVariable constant(double value) {
+            return new SizeVariable(Source.CONSTANT, value, null, null, null, 0, null, null);
+        }
+
+        public static SizeVariable itemNbt(String locator, String path, ItemNbtResolver.ValueType valueType, double defaultValue) {
+            return new SizeVariable(Source.ITEM_NBT, 0, locator, path, valueType, defaultValue, null, null);
+        }
+
+        public static SizeVariable builtin(String builtinId) {
+            return new SizeVariable(Source.BUILTIN, 0, null, null, null, 0, builtinId, null);
+        }
+
+        public static SizeVariable formula(String expr) {
+            return new SizeVariable(Source.FORMULA, 0, null, null, null, 0, null, expr);
+        }
+
+        public Source getSource() { return source; }
+
+        public double resolve(Player player, Map<String, Double> previouslyResolved) {
+            return switch (source) {
+                case CONSTANT -> constantValue;
+                case ITEM_NBT -> {
+                    Double value = ItemNbtResolver.resolve(player, locator, path, valueType);
+                    yield value != null ? value : defaultValue;
+                }
+                case BUILTIN -> {
+                    Double value = BuiltinTabVariables.resolve(builtinId, player);
+                    if (value == null) {
+                        sfiomn.legendarytabs.LegendaryTabs.LOGGER.warn("Unknown builtin tab size variable: {}", builtinId);
+                        yield 0;
+                    }
+                    yield value;
+                }
+                case FORMULA -> FormulaEvaluator.evaluate(formulaExpr, previouslyResolved);
+            };
+        }
     }
 }

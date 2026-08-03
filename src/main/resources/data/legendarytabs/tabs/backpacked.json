@@ -18,5 +18,24 @@
   ],
   "screen_patterns": [
     "*"
-  ]
+  ],
+  "screen_sizes": {
+    "com.mrcrayfish.backpacked.client.gui.screen.inventory.BackpackScreen": {
+      "width": 176,
+      "height": 186,
+      "priority": 10,
+      "variables": {
+        "columns": {
+          "source": "builtin",
+          "id": "backpacked_columns"
+        },
+        "rows": {
+          "source": "builtin",
+          "id": "backpacked_rows"
+        }
+      },
+      "width_formula": "14 + max(columns, 9) * 18",
+      "height_formula": "114 + rows * 18"
+    }
+  }
 }

@@ -127,7 +127,18 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
                 int width = sizeConfig.has("width") ? sizeConfig.get("width").getAsInt() : 176;
                 int height = sizeConfig.has("height") ? sizeConfig.get("height").getAsInt() : 166;
                 int priority = sizeConfig.has("priority") ? sizeConfig.get("priority").getAsInt() : 60;
-                screenSizes.put(screenClass, new TabData.ScreenSizeConfig(width, height, priority));
+
+                var variables = new java.util.LinkedHashMap<String, TabData.SizeVariable>();
+                if (sizeConfig.has("variables")) {
+                    JsonObject variablesJson = sizeConfig.getAsJsonObject("variables");
+                    for (String variableName : variablesJson.keySet()) {
+                        variables.put(variableName, parseSizeVariable(variablesJson.getAsJsonObject(variableName)));
+                    }
+                }
+                String widthFormula = sizeConfig.has("width_formula") ? sizeConfig.get("width_formula").getAsString() : null;
+                String heightFormula = sizeConfig.has("height_formula") ? sizeConfig.get("height_formula").getAsString() : null;
+
+                screenSizes.put(screenClass, new TabData.ScreenSizeConfig(width, height, priority, variables, widthFormula, heightFormula));
             }
         }
         
@@ -203,6 +214,29 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
         }
     }
     
+    private TabData.SizeVariable parseSizeVariable(JsonObject varJson) {
+        String source = varJson.get("source").getAsString();
+
+        return switch (source.toLowerCase()) {
+            case "constant" -> TabData.SizeVariable.constant(varJson.get("value").getAsDouble());
+            case "builtin" -> TabData.SizeVariable.builtin(varJson.get("id").getAsString());
+            case "formula" -> TabData.SizeVariable.formula(varJson.get("expr").getAsString());
+            case "item_nbt" -> {
+                String locator = varJson.get("locator").getAsString();
+                String path = varJson.get("path").getAsString();
+                var valueType = switch (varJson.get("type").getAsString().toLowerCase()) {
+                    case "int" -> sfiomn.legendarytabs.api.tabs_menu.ItemNbtResolver.ValueType.INT;
+                    case "double" -> sfiomn.legendarytabs.api.tabs_menu.ItemNbtResolver.ValueType.DOUBLE;
+                    case "boolean" -> sfiomn.legendarytabs.api.tabs_menu.ItemNbtResolver.ValueType.BOOLEAN;
+                    default -> throw new IllegalArgumentException("Unknown item_nbt value type: " + varJson.get("type").getAsString());
+                };
+                double defaultValue = varJson.has("default") ? varJson.get("default").getAsDouble() : 0;
+                yield TabData.SizeVariable.itemNbt(locator, path, valueType, defaultValue);
+            }
+            default -> throw new IllegalArgumentException("Unknown size variable source: " + source);
+        };
+    }
+
     private TabData.EnabledCondition parseEnabledCondition(JsonObject condJson) {
         String type = condJson.get("type").getAsString();
         String item = condJson.has("item") ? condJson.get("item").getAsString() : null;

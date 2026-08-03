@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public class DataDrivenTabBase extends TabBase {
@@ -510,8 +511,8 @@ public class DataDrivenTabBase extends TabBase {
         
         if (inventorySize != null) {
             LegendaryTabs.LOGGER.info("Adding tab {} to InventoryScreen with custom size", tabData.getId());
-            TabsMenu.addTabToScreen(this, net.minecraft.client.gui.screens.inventory.InventoryScreen.class, 
-                    (player) -> inventorySize.getWidth(), (player) -> inventorySize.getHeight(), inventorySize.getPriority());
+            TabsMenu.addTabToScreen(this, net.minecraft.client.gui.screens.inventory.InventoryScreen.class,
+                    inventorySize::getWidth, inventorySize::getHeight, inventorySize.getPriority());
         } else {
             LegendaryTabs.LOGGER.info("Adding tab {} to InventoryScreen with default size", tabData.getId());
             TabsMenu.addTabToScreen(this, net.minecraft.client.gui.screens.inventory.InventoryScreen.class, 
@@ -534,8 +535,8 @@ public class DataDrivenTabBase extends TabBase {
             if (sizeConfig != null) {
                 LegendaryTabs.LOGGER.info("Adding tab {} to screen {} with custom size: {}x{}", 
                         tabData.getId(), screenClass.getSimpleName(), sizeConfig.getWidth(), sizeConfig.getHeight());
-                TabsMenu.addTabToScreen(this, screenClass, 
-                    (player) -> sizeConfig.getWidth(), (player) -> sizeConfig.getHeight(), sizeConfig.getPriority());
+                TabsMenu.addTabToScreen(this, screenClass,
+                    sizeConfig::getWidth, sizeConfig::getHeight, sizeConfig.getPriority());
             } else {
                 LegendaryTabs.LOGGER.info("Adding tab {} to screen {} with default size", 
                         tabData.getId(), screenClass.getSimpleName());
@@ -558,20 +559,20 @@ public class DataDrivenTabBase extends TabBase {
         
         if (sizeConfig != null) {
             // Use configured size
-            LegendaryTabs.LOGGER.debug("Using custom size for {}: {}x{}, priority: {}", 
+            LegendaryTabs.LOGGER.debug("Using custom size for {}: {}x{}, priority: {}",
                     screenClassName, sizeConfig.getWidth(), sizeConfig.getHeight(), sizeConfig.getPriority());
-            addToScreenIfExists(screenClassName, sizeConfig.getWidth(), sizeConfig.getHeight(), sizeConfig.getPriority());
+            addToScreenIfExists(screenClassName, sizeConfig::getWidth, sizeConfig::getHeight, sizeConfig.getPriority());
         } else {
             // Use default size
-            addToScreenIfExists(screenClassName, 176, 166, 50);
+            addToScreenIfExists(screenClassName, (player) -> 176, (player) -> 166, 50);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private void addToScreenIfExists(String className, int width, int height, int priority) {
+    private void addToScreenIfExists(String className, Function<Player, Integer> screenWidth, Function<Player, Integer> screenHeight, int priority) {
         try {
             Class<? extends Screen> screenClass = (Class<? extends Screen>) Class.forName(className);
-            TabsMenu.addTabToScreen(this, screenClass, (player) -> width, (player) -> height, priority);
+            TabsMenu.addTabToScreen(this, screenClass, screenWidth, screenHeight, priority);
         } catch (ClassNotFoundException e) {
             LegendaryTabs.LOGGER.debug("Screen class not found: " + className);
         }

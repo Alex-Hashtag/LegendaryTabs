@@ -24,5 +24,39 @@
   ],
   "screen_patterns": [
     "*"
-  ]
+  ],
+  "screen_sizes": {
+    "com.tiviacz.travelersbackpack.client.screens.BackpackScreen": {
+      "width": 176,
+      "height": 239,
+      "priority": 20,
+      "variables": {
+        "slot_count": {
+          "source": "item_nbt",
+          "locator": "travelers_backpack_wearable",
+          "path": "StorageSlots",
+          "type": "int",
+          "default": 27
+        },
+        "tanks_visible": {
+          "source": "builtin",
+          "id": "travelers_tanks_visible"
+        },
+        "wider": {
+          "source": "formula",
+          "expr": "slot_count > 81"
+        },
+        "row_slots": {
+          "source": "formula",
+          "expr": "wider ? 11 : 9"
+        },
+        "rows": {
+          "source": "formula",
+          "expr": "ceil(slot_count / row_slots)"
+        }
+      },
+      "width_formula": "wider ? (tanks_visible ? 256 : 212) : (tanks_visible ? 220 : 176)",
+      "height_formula": "17 + rows * 18 + 96"
+    }
+  }
 }
