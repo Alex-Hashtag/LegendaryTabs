@@ -150,37 +150,39 @@ dependencies {
     // Apply Mixin AP
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
-    // External libraries.
-
+    // Mods kept active during devbuild testing (loaded at runtime and available at compile time).
     implementation(fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}"))
     implementation(fg.deobf("curse.maven:legendarysurvivaloverhaul-840254:7603852"))
-    implementation(fg.deobf("curse.maven:reskillablereimagined-1170464:8391133"))
-    implementation(fg.deobf("curse.maven:architectury-419699:5137938"))
-    implementation(fg.deobf("curse.maven:ftbquest-289412:8078538"))
-    implementation(fg.deobf("curse.maven:ftbteams-404468:7499810"))
     implementation(fg.deobf("curse.maven:backpacked-352835:7866682"))
-    implementation(fg.deobf("curse.maven:framework-549225:7573740"))
-    implementation(fg.deobf("curse.maven:mapatlases-519759:8146282"))
-    implementation(fg.deobf("curse.maven:moonlightapi-499980:8261419"))
+    implementation(fg.deobf("curse.maven:framework-549225:7573740")) // Required library for Backpacked
     implementation(fg.deobf("curse.maven:diet-443570:4813904"))
-    implementation(fg.deobf("curse.maven:passiveskill-850298:8397486"))
-    implementation(fg.deobf("curse.maven:itemproductionlib-950401:5114036"))
-    implementation(fg.deobf("curse.maven:attributefix-280510:7612291"))
-    implementation(fg.deobf("curse.maven:pufferfishsskills-835091:8408194"))
-    //implementation(fg.deobf("curse.maven:justlevelingfork-1073400:8116448"))
-    implementation(fg.deobf("curse.maven:travelersbackpack-321117:8154660"))
-
-    runtimeOnly(fg.deobf("curse.maven:ftblibrary-404465:8226927"))
-    //runtimeOnly(fg.deobf("curse.maven:yetanotherconfig-667299:6336646"))
-    runtimeOnly(fg.deobf("curse.maven:controlling-250398:4646682"))
-    runtimeOnly(fg.deobf("curse.maven:searchables-858542:5284015"))
-
-    implementation fg.deobf("curse.maven:quark-243121:6427817")
-    implementation fg.deobf("curse.maven:zeta-968868:7335229")
     implementation(fg.deobf("curse.maven:xaerosmap-317780:8424481"))
-    implementation(fg.deobf("curse.maven:journeymap-32274:5789363"))
+
+    // Other external libraries are kept as compileOnly so the project still builds,
+    // but they are NOT loaded during devbuild testing.
+    compileOnly(fg.deobf("curse.maven:reskillablereimagined-1170464:8391133"))
+    compileOnly(fg.deobf("curse.maven:architectury-419699:5137938"))
+    compileOnly(fg.deobf("curse.maven:ftbquest-289412:8078538"))
+    compileOnly(fg.deobf("curse.maven:ftbteams-404468:7499810"))
+    compileOnly(fg.deobf("curse.maven:mapatlases-519759:8146282"))
+    compileOnly(fg.deobf("curse.maven:moonlightapi-499980:8261419"))
+    compileOnly(fg.deobf("curse.maven:passiveskill-850298:8397486"))
+    compileOnly(fg.deobf("curse.maven:itemproductionlib-950401:5114036"))
+    compileOnly(fg.deobf("curse.maven:attributefix-280510:7612291"))
+    compileOnly(fg.deobf("curse.maven:pufferfishsskills-835091:8408194"))
+    //compileOnly(fg.deobf("curse.maven:justlevelingfork-1073400:8116448"))
+    compileOnly(fg.deobf("curse.maven:travelersbackpack-321117:8154660"))
+
+    compileOnly(fg.deobf("curse.maven:ftblibrary-404465:8226927"))
+    //compileOnly(fg.deobf("curse.maven:yetanotherconfig-667299:6336646"))
+    compileOnly(fg.deobf("curse.maven:controlling-250398:4646682"))
+    compileOnly(fg.deobf("curse.maven:searchables-858542:5284015"))
+
+    compileOnly fg.deobf("curse.maven:quark-243121:6427817")
+    compileOnly fg.deobf("curse.maven:zeta-968868:7335229")
+    compileOnly(fg.deobf("curse.maven:journeymap-32274:5789363"))
     compileOnly(fg.deobf("curse.maven:reskillable-981352:6044192"))
-    implementation(fg.deobf("curse.maven:cosmeticarmor-237307:4600191"))
+    compileOnly(fg.deobf("curse.maven:cosmeticarmor-237307:4600191"))
 
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html

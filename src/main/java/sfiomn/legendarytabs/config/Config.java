@@ -4,6 +4,8 @@ import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import sfiomn.legendarytabs.LegendaryTabs;
 
 import java.io.IOException;
@@ -41,27 +43,29 @@ public class Config
 
 	public static class Client
 	{
-		public final ForgeConfigSpec.BooleanValue inventoryTabEnabled;
-		public final ForgeConfigSpec.BooleanValue backpackTabEnabled;
-		public final ForgeConfigSpec.BooleanValue travelersBackpackTabEnabled;
-		public final ForgeConfigSpec.BooleanValue reskillableTabEnabled;
-		public final ForgeConfigSpec.BooleanValue ftbQuestsTabEnabled;
-		public final ForgeConfigSpec.BooleanValue mapAtlasesTabEnabled;
-		public final ForgeConfigSpec.BooleanValue xaerosMapTabEnabled;
-		public final ForgeConfigSpec.BooleanValue journeyMapTabEnabled;
-		public final ForgeConfigSpec.BooleanValue ftbTeamsTabEnabled;
-		public final ForgeConfigSpec.BooleanValue dietTabEnabled;
-		public final ForgeConfigSpec.BooleanValue pufferfishSkillsTabEnabled;
-		public final ForgeConfigSpec.BooleanValue passiveSkillTreeTabEnabled;
+		public final ForgeConfigSpec.BooleanValue verboseLoggingEnabled;
 
 		public final ForgeConfigSpec.IntValue tabsMenuOffsetX;
 		public final ForgeConfigSpec.IntValue tabsMenuOffsetY;
-
 		public final ForgeConfigSpec.BooleanValue includeOpenedScreenTab;
+		public final ForgeConfigSpec.BooleanValue inventoryTabEnabled;
 
 		Client(ForgeConfigSpec.Builder builder)
 		{
-			builder.push("tabs-menu").comment(" Configuration about the new tabs added on top of defined screens");
+			builder.push("general").comment(" General mod settings");
+			verboseLoggingEnabled = builder
+					.comment(" If enabled, logs detailed info/debug messages about tab loading, sizing, and input simulation.",
+							" Warnings and errors are always logged regardless of this setting. Leave disabled unless troubleshooting.")
+					.define("Verbose Logging Enabled", false);
+			builder.pop();
+
+			builder.push("tabs-menu").comment(
+					" Configuration about the tabs menu overlaid on top of screens",
+					" Most integration tabs (Backpacked, Travelers Backpack, Diet, FTB Quests/Teams,",
+					" Xaero's/Journey Map, Reskillable, Pufferfish's Skills, Passive Skill Tree, ...) are",
+					" now defined entirely by datapacks under data/legendarytabs/tabs/*.json - toggle a",
+					" tab there via its \"enabled\" field instead of here. The Inventory tab is the one",
+					" remaining built-in Java tab, so it's still the only per-tab toggle left in this config.");
 			tabsMenuOffsetX = builder
 					.comment(" The X and Y offset of the tabs menu. Set both to 0 for no offset.", " By default, will be rendered above minecraft menus. Set it to 10000 to disable it completely.")
 					.defineInRange("Tabs Menu Display X Offset", 2, -10000, 10000);
@@ -73,39 +77,6 @@ public class Config
 			inventoryTabEnabled = builder
 					.comment(" If enabled, show the inventory button in the tabs menu.")
 					.define("Inventory Tab Enabled ", true);
-			backpackTabEnabled = builder
-					.comment(" If enabled, show the backpack button for Backpacked mod in the tabs menu.")
-					.define("Backpacked Tab Enabled ", true);
-			travelersBackpackTabEnabled = builder
-					.comment(" If enabled, show the backpack button for Travelers Backpack mod in the tabs menu.")
-					.define("Travelers Backpack Tab Enabled ", true);
-			reskillableTabEnabled = builder
-					.comment(" If enabled, show the reskillable button for Rereskillable or Reskillable Reimagined in the tabs menu.")
-					.define("Reskillable Tab Enabled ", true);
-			ftbQuestsTabEnabled = builder
-					.comment(" If enabled, show the ftb quests button in the tabs menu.")
-					.define("FTB Quests Tab Enabled ", true);
-			mapAtlasesTabEnabled = builder
-					.comment(" If enabled, show the map button for Map Atlases mod in the tabs menu.")
-					.define("Map Atlases Tab Enabled ", true);
-			xaerosMapTabEnabled = builder
-					.comment(" If enabled, show the map button for Xaero's Map mod in the tabs menu.")
-					.define("Xaero's Map Tab Enabled ", true);
-			journeyMapTabEnabled = builder
-					.comment(" If enabled, show the map button for Journey Map mod in the tabs menu.")
-					.define("Journey Map Tab Enabled ", true);
-			ftbTeamsTabEnabled = builder
-					.comment(" If enabled, show the ftb teams button in the tabs menu.")
-					.define("FTB Teams Tab Enabled ", true);
-			dietTabEnabled = builder
-					.comment(" If enabled, show the diet button in the tabs menu.")
-					.define("Diet Tab Enabled ", true);
-			pufferfishSkillsTabEnabled = builder
-					.comment(" If enabled, show the pufferfish's skills button in the tabs menu.")
-					.define("Pufferfish Skills Tab Enabled ", true);
-			passiveSkillTreeTabEnabled = builder
-					.comment(" If enabled, show the passive skill tree button in the tabs menu.")
-					.define("Passive Skill Tree Tab Enabled ", true);
 			builder.pop();
 		}
 	}
@@ -120,6 +91,8 @@ public class Config
 
 	public static class Baked
 	{
+		public static boolean verboseLoggingEnabled;
+
 		// Tabs Menu
 		public static boolean includeOpenedScreenTab;
 
@@ -127,40 +100,22 @@ public class Config
 		public static int tabsMenuOffsetY;
 
 		public static boolean inventoryTabEnabled;
-		public static boolean backpackTabEnabled;
-		public static boolean travelersBackpackTabEnabled;
-		public static boolean mapAtlasesTabEnabled;
-		public static boolean xaerosMapTabEnabled;
-		public static boolean journeyMapTabEnabled;
-		public static boolean reskillableTabEnabled;
-		public static boolean ftbQuestsTabEnabled;
-		public static boolean ftbTeamsTabEnabled;
-		public static boolean dietTabEnabled;
-		public static boolean pufferfishSkillsTabEnabled;
-		public static boolean passiveSkillTreeTabEnabled;
 
 		public static void bakeClient()
 		{
-			LegendaryTabs.LOGGER.debug("Load Client configuration from file");
 			try
 			{
+				verboseLoggingEnabled = CLIENT.verboseLoggingEnabled.get();
+				Configurator.setLevel(LegendaryTabs.LOGGER.getName(), verboseLoggingEnabled ? Level.DEBUG : Level.WARN);
+
+				LegendaryTabs.LOGGER.debug("Load Client configuration from file");
+
 				includeOpenedScreenTab = CLIENT.includeOpenedScreenTab.get();
 
 				tabsMenuOffsetX = CLIENT.tabsMenuOffsetX.get();
 				tabsMenuOffsetY = CLIENT.tabsMenuOffsetY.get();
 
 				inventoryTabEnabled = CLIENT.inventoryTabEnabled.get();
-				backpackTabEnabled = CLIENT.backpackTabEnabled.get();
-				travelersBackpackTabEnabled = CLIENT.travelersBackpackTabEnabled.get();
-				reskillableTabEnabled = CLIENT.reskillableTabEnabled.get();
-				ftbQuestsTabEnabled = CLIENT.ftbQuestsTabEnabled.get();
-				mapAtlasesTabEnabled = CLIENT.mapAtlasesTabEnabled.get();
-				xaerosMapTabEnabled = CLIENT.xaerosMapTabEnabled.get();
-				journeyMapTabEnabled = CLIENT.journeyMapTabEnabled.get();
-				ftbTeamsTabEnabled = CLIENT.ftbTeamsTabEnabled.get();
-				dietTabEnabled = CLIENT.dietTabEnabled.get();
-				pufferfishSkillsTabEnabled = CLIENT.pufferfishSkillsTabEnabled.get();
-				passiveSkillTreeTabEnabled = CLIENT.passiveSkillTreeTabEnabled.get();
 			}
 			catch (Exception e)
 			{
