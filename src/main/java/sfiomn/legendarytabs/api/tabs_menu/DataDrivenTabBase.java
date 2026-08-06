@@ -18,31 +18,82 @@ import net.minecraftforge.fml.ModList;
 import net.minecraftforge.registries.ForgeRegistries;
 import sfiomn.legendarytabs.LegendaryTabs;
 
+import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 
 public class DataDrivenTabBase extends TabBase {
+    private static final int DEFAULT_ORDER_PRIORITY = 50;
+
     protected final TabData tabData;
-    private final List<Pattern> screenPatterns;
 
     public DataDrivenTabBase(TabData tabData) {
         this.tabData = tabData;
-        this.screenPatterns = tabData.getScreenPatterns().stream()
-                .map(this::compileScreenPattern)
-                .toList();
     }
 
-    private Pattern compileScreenPattern(String pattern) {
-        // Convert glob-like patterns to regex
-        String regex = pattern
-                .replace(".", "\\.")
-                .replace("*", ".*")
-                .replace("?", ".");
-        return Pattern.compile(regex);
+    @Override
+    public String getId() {
+        return tabData.getId();
+    }
+
+    /**
+     * A single ordering priority for this tab, used for every screen it appears on - its own
+     * screen and every screen it fans out to via "*". Without this, a tab's position relative
+     * to its peers could differ from screen to screen depending on whether the JSON happened to
+     * declare a priority for that particular screen (its own screen_sizes entry) or fell back
+     * to a hardcoded default elsewhere, which made tab order inconsistent across screens.
+     */
+    private int resolveOrderPriority() {
+        return tabData.getScreenSizes().values().stream()
+                .findFirst()
+                .map(TabData.ScreenSizeConfig::getPriority)
+                .orElse(DEFAULT_ORDER_PRIORITY);
+    }
+
+    /**
+     * Registers that the screen(s) this tab intrinsically belongs to (its own mod's screen,
+     * declared via screen_sizes and/or target_screen_class) exist, WITHOUT placing this tab on
+     * them yet - that happens uniformly in initTabOnScreens() below, alongside every other tab's
+     * fan-out, so a tab's position relative to its peers on its own screen matches its position
+     * everywhere else. Screen discovery for other tabs only ever sees screens that are already
+     * known, so every screen must be seeded here first - otherwise a mod's own screen never
+     * becomes visible to any tab, including its own, regardless of registration order.
+     * <p>
+     * If show_tabs_on_screen is false, this is skipped entirely: the screen is never registered,
+     * so nobody (including this tab) ever discovers it, and it never gets a tab bar at all.
+     */
+    public void seedOwnedScreens() {
+        if (!tabData.isShowTabsOnScreen()) {
+            return;
+        }
+
+        for (Map.Entry<String, TabData.ScreenSizeConfig> entry : tabData.getScreenSizes().entrySet()) {
+            seedScreen(entry.getKey(), entry.getValue());
+        }
+
+        tabData.getTargetScreenClass().ifPresent(className -> {
+            if (!tabData.getScreenSizes().containsKey(className)) {
+                seedScreen(className, null);
+            }
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void seedScreen(String className, TabData.ScreenSizeConfig sizeConfig) {
+        try {
+            Class<? extends Screen> screenClass = (Class<? extends Screen>) Class.forName(className);
+            Function<Player, Integer> width = sizeConfig != null ? sizeConfig::getWidth : (player) -> 176;
+            Function<Player, Integer> height = sizeConfig != null ? sizeConfig::getHeight : (player) -> 166;
+            ResourceLocation buttonSkin = sizeConfig != null ? sizeConfig.getButtonSkin().orElse(null) : null;
+            int iconOffsetX = sizeConfig != null ? sizeConfig.getIconOffsetX() : 0;
+            int iconOffsetY = sizeConfig != null ? sizeConfig.getIconOffsetY() : 0;
+            TabsMenu.ensureScreenInfo(screenClass, width, height, buttonSkin, iconOffsetX, iconOffsetY);
+        } catch (ClassNotFoundException e) {
+            LegendaryTabs.LOGGER.debug("Screen class not found: " + className);
+        }
     }
 
     @Override
@@ -68,14 +119,8 @@ public class DataDrivenTabBase extends TabBase {
                     }
                 });
             }
-            case CUSTOM -> {
-                action.getCustomAction().ifPresent(this::executeCustomAction);
-            }
             case OPEN_SCREEN -> {
-                action.getScreenClassName().ifPresent(this::openScreenByClassName);
-            }
-            case API_CALL -> {
-                action.getApiCallName().ifPresent(callName -> executeApiCall(callName, player));
+                action.getScreenClassName().ifPresent(className -> openScreenByClassName(className, action.getConstructorArgs(), player));
             }
             case REFLECTION -> {
                 action.getReflectionClassName().ifPresent(className ->
@@ -88,10 +133,6 @@ public class DataDrivenTabBase extends TabBase {
                 action.getCommand().ifPresent(command -> executeCommand(command, action.isCloseScreenFirst()));
             }
         }
-    }
-
-    private void executeApiCall(String callName, Player player) {
-        LegendaryTabs.LOGGER.warn("api_call '{}' is no longer supported; migrate the tab to key_press or right_click_item", callName);
     }
 
     private void executeReflectionCall(String className, String methodName, boolean isStatic, boolean closeScreenFirst) {
@@ -170,14 +211,45 @@ public class DataDrivenTabBase extends TabBase {
     }
 
     @SuppressWarnings("unchecked")
-    private void openScreenByClassName(String screenClassName) {
+    private void openScreenByClassName(String screenClassName, List<String> constructorArgSources, Player player) {
         try {
             Class<? extends Screen> screenClass = (Class<? extends Screen>) Class.forName(screenClassName);
-            Screen screen = screenClass.getDeclaredConstructor().newInstance();
+            Screen screen;
+            if (constructorArgSources.isEmpty()) {
+                screen = screenClass.getDeclaredConstructor().newInstance();
+            } else {
+                Object[] args = constructorArgSources.stream().map(source -> resolveConstructorArg(source, player)).toArray();
+                Constructor<?> constructor = Arrays.stream(screenClass.getDeclaredConstructors())
+                        .filter(c -> c.getParameterCount() == args.length)
+                        .findFirst()
+                        .orElseThrow(() -> new NoSuchMethodException(
+                                screenClassName + " has no constructor taking " + args.length + " argument(s)"));
+                constructor.setAccessible(true);
+                screen = (Screen) constructor.newInstance(args);
+            }
             Minecraft.getInstance().setScreen(screen);
         } catch (Exception e) {
             LegendaryTabs.LOGGER.warn("Failed to open screen by class name: {}", screenClassName, e);
         }
+    }
+
+    /**
+     * Named engine-values an OPEN_SCREEN action's constructor_args can ask for - a small,
+     * reusable set (not tied to any one mod's screen) that a tab JSON can combine to match
+     * whatever constructor its target screen actually has, instead of Java needing a bespoke
+     * case for each screen that isn't a plain no-arg constructor.
+     */
+    private static Object resolveConstructorArg(String source, Player player) {
+        return switch (source) {
+            case "player" -> player;
+            case "minecraft" -> Minecraft.getInstance();
+            case "client_advancements" -> Minecraft.getInstance().player != null && Minecraft.getInstance().player.connection != null
+                    ? Minecraft.getInstance().player.connection.getAdvancements() : null;
+            default -> {
+                LegendaryTabs.LOGGER.warn("Unknown constructor_args source: {}", source);
+                yield null;
+            }
+        };
     }
 
 
@@ -306,11 +378,6 @@ public class DataDrivenTabBase extends TabBase {
         return null;
     }
 
-    private void executeCustomAction(String customAction) {
-        // Placeholder for custom actions
-        LegendaryTabs.LOGGER.info("Executing custom action: " + customAction);
-    }
-
     @Override
     public boolean isEnabled(Player player) {
         LegendaryTabs.LOGGER.info("Checking isEnabled for tab: {}", tabData.getId());
@@ -415,27 +482,26 @@ public class DataDrivenTabBase extends TabBase {
     }
 
     @Override
-    public void render(GuiGraphics gui, int x, int y, boolean hover) {
+    public void render(GuiGraphics gui, int x, int y, boolean hover, ResourceLocation buttonTexture, int iconOffsetX, int iconOffsetY) {
         TabData.IconData iconData = tabData.getIconData();
-        
+
         if (iconData.getType() == TabData.IconData.IconType.ITEM) {
             // Render button background first
             int bgTexX = hover ? 27 : 0;
             int bgTexY = 0;
-            ResourceLocation buttonsTexture = new ResourceLocation(LegendaryTabs.MOD_ID, "textures/gui/buttons.png");
-            gui.blit(buttonsTexture, x, y, bgTexX, bgTexY, TAB_WIDTH, TAB_HEIGHT, 64, 64);
-            
+            gui.blit(buttonTexture != null ? buttonTexture : DEFAULT_BUTTONS_TEXTURE, x, y, bgTexX, bgTexY, TAB_WIDTH, TAB_HEIGHT, 64, 64);
+
             // Render item icon
             iconData.getItemId().ifPresent(itemId -> {
                 var item = ForgeRegistries.ITEMS.getValue(itemId);
                 if (item != null) {
                     ItemStack itemStack = new ItemStack(item);
-                    gui.renderItem(itemStack, x + ICON_OFFSET_X, y + ICON_OFFSET_Y);
+                    gui.renderItem(itemStack, x + ICON_OFFSET_X + iconOffsetX, y + ICON_OFFSET_Y + iconOffsetY);
                 }
             });
         } else {
             // Use default texture rendering
-            super.render(gui, x, y, hover);
+            super.render(gui, x, y, hover, buttonTexture, iconOffsetX, iconOffsetY);
         }
     }
 
@@ -464,118 +530,62 @@ public class DataDrivenTabBase extends TabBase {
         return Component.translatable(tabData.getTooltipKey());
     }
 
+    /**
+     * Fans this tab out to every screen currently registered - the tab bar's default behaviour
+     * is simply "every screen that shows a tab bar shows every currently-enabled tab". A screen
+     * only ever gets left out if its owning tab set show_tabs_on_screen to false, in which case
+     * it was never seeded in the first place (see seedOwnedScreens()) and so never shows up in
+     * TabsMenu.getRegisteredScreens() for anyone, including its own tab, to fan out onto.
+     */
     @Override
     public void initTabOnScreens() {
-        LegendaryTabs.LOGGER.info("Initializing tab {} on screens with patterns: {}", tabData.getId(), tabData.getScreenPatterns());
-        for (String screenPattern : tabData.getScreenPatterns()) {
-            LegendaryTabs.LOGGER.info("Processing screen pattern: {}", screenPattern);
-            initTabOnScreenPattern(screenPattern);
-        }
-    }
+        LegendaryTabs.LOGGER.info("Initializing tab {} on all registered screens", tabData.getId());
 
-    private void initTabOnScreenPattern(String screenPattern) {
-        // Handle special patterns
-        if ("*".equals(screenPattern)) {
-            // Add to all known screen types
-            initTabOnAllScreens();
-            return;
-        }
-        
-        if (screenPattern.startsWith("*/")) {
-            // Handle exclusion patterns like */BodyHealthScreen,ReskillableTab
-            String exclusionPart = screenPattern.substring(2);
-            String[] exclusions = exclusionPart.split(",");
-            initTabOnAllScreensExcept(Arrays.asList(exclusions));
-            return;
-        }
-        
-        if (screenPattern.contains(",")) {
-            // Handle comma-separated list
-            String[] screens = screenPattern.split(",");
-            for (String screen : screens) {
-                initTabOnSingleScreen(screen.trim());
-            }
-            return;
-        }
-        
-        // Handle single screen
-        initTabOnSingleScreen(screenPattern);
-    }
+        int priority = resolveOrderPriority();
 
-    private void initTabOnAllScreens() {
-        LegendaryTabs.LOGGER.info("initTabOnAllScreens() called for tab: {}", tabData.getId());
-        
         // Add to standard vanilla screens first
         String inventoryScreenClass = "net.minecraft.client.gui.screens.inventory.InventoryScreen";
         TabData.ScreenSizeConfig inventorySize = tabData.getScreenSizes().get(inventoryScreenClass);
-        
+
         if (inventorySize != null) {
             LegendaryTabs.LOGGER.info("Adding tab {} to InventoryScreen with custom size", tabData.getId());
             TabsMenu.addTabToScreen(this, net.minecraft.client.gui.screens.inventory.InventoryScreen.class,
-                    inventorySize::getWidth, inventorySize::getHeight, inventorySize.getPriority());
+                    inventorySize::getWidth, inventorySize::getHeight, priority);
         } else {
             LegendaryTabs.LOGGER.info("Adding tab {} to InventoryScreen with default size", tabData.getId());
-            TabsMenu.addTabToScreen(this, net.minecraft.client.gui.screens.inventory.InventoryScreen.class, 
-                    (player) -> 176, (player) -> 166, 50);
+            TabsMenu.addTabToScreen(this, net.minecraft.client.gui.screens.inventory.InventoryScreen.class,
+                    (player) -> 176, (player) -> 166, priority);
         }
-        
+
         // Use existing screen registry from other tabs to discover available screens
         // This way we don't hardcode mod-specific screens
         var existingScreens = TabsMenu.getRegisteredScreens();
-        
+
         for (Class<? extends Screen> screenClass : existingScreens) {
-            // Skip InventoryScreen since we already added it above
+            // Skip InventoryScreen since we already added it above. Screens this tab owns
+            // (seeded but not yet populated by seedOwnedScreens()) are handled below like any
+            // other screen, so this tab's own position among its peers is the same everywhere.
             if (screenClass == net.minecraft.client.gui.screens.inventory.InventoryScreen.class) {
                 continue;
             }
-            
+
             String screenClassName = screenClass.getName();
             TabData.ScreenSizeConfig sizeConfig = tabData.getScreenSizes().get(screenClassName);
-            
+
             if (sizeConfig != null) {
-                LegendaryTabs.LOGGER.info("Adding tab {} to screen {} with custom size: {}x{}", 
+                LegendaryTabs.LOGGER.info("Adding tab {} to screen {} with custom size: {}x{}",
                         tabData.getId(), screenClass.getSimpleName(), sizeConfig.getWidth(), sizeConfig.getHeight());
                 TabsMenu.addTabToScreen(this, screenClass,
-                    sizeConfig::getWidth, sizeConfig::getHeight, sizeConfig.getPriority());
+                    sizeConfig::getWidth, sizeConfig::getHeight, priority);
             } else {
-                LegendaryTabs.LOGGER.info("Adding tab {} to screen {} with default size", 
+                LegendaryTabs.LOGGER.info("Adding tab {} to screen {} with default size",
                         tabData.getId(), screenClass.getSimpleName());
-                TabsMenu.addTabToScreen(this, screenClass, 
-                    (player) -> 176, (player) -> 166, 50);
+                TabsMenu.addTabToScreen(this, screenClass,
+                    (player) -> 176, (player) -> 166, priority);
             }
         }
-        
-        LegendaryTabs.LOGGER.info("Completed initTabOnAllScreens() for tab: {}", tabData.getId());
-    }
 
-    private void initTabOnAllScreensExcept(List<String> exclusions) {
-        // Implementation for exclusion patterns
-        initTabOnAllScreens(); // For now, just add to all - this would need more sophisticated logic
-    }
-
-    private void initTabOnSingleScreen(String screenClassName) {
-        // Check if we have a custom size configuration for this screen
-        TabData.ScreenSizeConfig sizeConfig = tabData.getScreenSizes().get(screenClassName);
-        
-        if (sizeConfig != null) {
-            // Use configured size
-            LegendaryTabs.LOGGER.debug("Using custom size for {}: {}x{}, priority: {}",
-                    screenClassName, sizeConfig.getWidth(), sizeConfig.getHeight(), sizeConfig.getPriority());
-            addToScreenIfExists(screenClassName, sizeConfig::getWidth, sizeConfig::getHeight, sizeConfig.getPriority());
-        } else {
-            // Use default size
-            addToScreenIfExists(screenClassName, (player) -> 176, (player) -> 166, 50);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void addToScreenIfExists(String className, Function<Player, Integer> screenWidth, Function<Player, Integer> screenHeight, int priority) {
-        try {
-            Class<? extends Screen> screenClass = (Class<? extends Screen>) Class.forName(className);
-            TabsMenu.addTabToScreen(this, screenClass, screenWidth, screenHeight, priority);
-        } catch (ClassNotFoundException e) {
-            LegendaryTabs.LOGGER.debug("Screen class not found: " + className);
-        }
+        LegendaryTabs.LOGGER.info("Completed initializing tab {} on all registered screens", tabData.getId());
     }
 
     public TabData getTabData() {

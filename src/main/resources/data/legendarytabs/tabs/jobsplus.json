@@ -1,0 +1,28 @@
+{
+  "id": "jobsplus",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/jobs.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "key.jobsplus.open_menu",
+    "close_screen_first": true
+  },
+  "tooltip": "tooltip.legendarytabs.tab.jobsplus.description",
+  "required_mods": [
+    "jobsplus"
+  ],
+  "target_screen_class": "com.daqem.jobsplus.client.screen.JobsScreen",
+  "show_tabs_on_screen": false,
+  "screen_sizes": {
+    "com.daqem.jobsplus.client.screen.JobsScreen": {
+      "width": 176,
+      "height": 200,
+      "priority": 50
+    }
+  }
+}

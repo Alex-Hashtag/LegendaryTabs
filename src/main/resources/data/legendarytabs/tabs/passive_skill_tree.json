@@ -16,7 +16,5 @@
   "required_mods": [
     "skilltree"
   ],
-  "screen_patterns": [
-    "*"
-  ]
+  "target_screen_class": "daripher.skilltree.client.screen.SkillTreeScreen"
 }

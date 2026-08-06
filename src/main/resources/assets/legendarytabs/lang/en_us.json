@@ -12,5 +12,9 @@
   "tooltip.legendarytabs.tab.diet.description": "Diet",
   "tooltip.legendarytabs.tab.passive_skill_tree.description": "Skill Tree",
   "tooltip.legendarytabs.tab.pufferfish_skills.description": "Skill Tree",
+  "tooltip.legendarytabs.tab.jobsplus.description": "Jobs",
+  "tooltip.legendarytabs.tab.epic_fight.description": "Skill Editor",
+  "tooltip.legendarytabs.tab.epic_fight_skill_tree.description": "Skill Tree",
+  "tooltip.legendarytabs.tab.advancements.description": "Advancements",
   "message.legendarytabs.tab_unavailable": "This menu is not linked anymore"
 }

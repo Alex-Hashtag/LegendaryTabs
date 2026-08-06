@@ -181,8 +181,10 @@ public class LegendaryTabs
         public static void onClientSetup(FMLClientSetupEvent event)
         {
             Config.Baked.bakeClient();
-            TabsMenu.register(new InventoryTab());
-            
+            InventoryTab inventoryTab = new InventoryTab();
+            TabsMenu.register(inventoryTab);
+            TabsMenu.setInventoryTab(inventoryTab);
+
             // Data-driven tabs are loaded from server datapacks and synced to the client via network.
             // The TabDataLoader instance is created on the client when the first sync packet arrives.
 

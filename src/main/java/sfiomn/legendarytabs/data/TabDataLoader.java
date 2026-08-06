@@ -105,13 +105,6 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
                 requiredMods.add(element.getAsString()));
         }
         
-        // Parse screen patterns
-        var screenPatterns = new java.util.ArrayList<String>();
-        if (json.has("screen_patterns")) {
-            json.getAsJsonArray("screen_patterns").forEach(element -> 
-                screenPatterns.add(element.getAsString()));
-        }
-        
         // Parse target screen class (optional)
         String targetScreenClass = null;
         if (json.has("target_screen_class")) {
@@ -138,7 +131,14 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
                 String widthFormula = sizeConfig.has("width_formula") ? sizeConfig.get("width_formula").getAsString() : null;
                 String heightFormula = sizeConfig.has("height_formula") ? sizeConfig.get("height_formula").getAsString() : null;
 
-                screenSizes.put(screenClass, new TabData.ScreenSizeConfig(width, height, priority, variables, widthFormula, heightFormula));
+                // button_skin/icon offsets apply to every tab's button while this screen is
+                // open, not just this tab's own - the tab bar is shared UI chrome, so its skin
+                // is a property of the screen, the same way width/height/priority are.
+                ResourceLocation buttonSkin = sizeConfig.has("button_skin") ? new ResourceLocation(sizeConfig.get("button_skin").getAsString()) : null;
+                int iconOffsetX = sizeConfig.has("icon_offset_x") ? sizeConfig.get("icon_offset_x").getAsInt() : 0;
+                int iconOffsetY = sizeConfig.has("icon_offset_y") ? sizeConfig.get("icon_offset_y").getAsInt() : 0;
+
+                screenSizes.put(screenClass, new TabData.ScreenSizeConfig(width, height, priority, variables, widthFormula, heightFormula, buttonSkin, iconOffsetX, iconOffsetY));
             }
         }
         
@@ -151,7 +151,9 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
             });
         }
 
-        return new TabData(id, enabled, iconData, screenOpenAction, tooltipKey, screenPatterns, requiredMods, targetScreenClass, screenSizes, enabledConditions);
+        boolean showTabsOnScreen = !json.has("show_tabs_on_screen") || json.get("show_tabs_on_screen").getAsBoolean();
+
+        return new TabData(id, enabled, iconData, screenOpenAction, tooltipKey, requiredMods, targetScreenClass, screenSizes, enabledConditions, showTabsOnScreen);
     }
     
     private TabData.IconData parseIconData(JsonObject iconJson) {
@@ -186,17 +188,14 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
                 ResourceLocation itemId = new ResourceLocation(actionJson.get("item").getAsString());
                 return TabData.ScreenOpenAction.rightClickItem(itemId);
             }
-            case "custom" -> {
-                String customAction = actionJson.get("action").getAsString();
-                return TabData.ScreenOpenAction.custom(customAction);
-            }
             case "open_screen" -> {
                 String screenClass = actionJson.get("screen_class").getAsString();
-                return TabData.ScreenOpenAction.openScreen(screenClass);
-            }
-            case "api_call" -> {
-                String callName = actionJson.get("call").getAsString();
-                return TabData.ScreenOpenAction.apiCall(callName);
+                var constructorArgs = new java.util.ArrayList<String>();
+                if (actionJson.has("constructor_args")) {
+                    actionJson.getAsJsonArray("constructor_args").forEach(element ->
+                        constructorArgs.add(element.getAsString()));
+                }
+                return TabData.ScreenOpenAction.openScreen(screenClass, constructorArgs);
             }
             case "reflection" -> {
                 String className = actionJson.get("class_name").getAsString();

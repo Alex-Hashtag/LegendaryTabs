@@ -3,6 +3,7 @@ package sfiomn.legendarytabs.api.tabs_menu;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.client.event.ScreenEvent;
 import sfiomn.legendarytabs.LegendaryTabs;
@@ -17,14 +18,62 @@ import static sfiomn.legendarytabs.api.tabs_menu.TabBase.TAB_HEIGHT;
 import static sfiomn.legendarytabs.api.tabs_menu.TabBase.TAB_WIDTH;
 
 public class TabsMenu {
-    private static final Map<Class<? extends Screen>, ScreenInfo> tabsScreens = new HashMap<>();
+    private static final Map<Class<? extends Screen>, ScreenInfo> tabsScreens = new LinkedHashMap<>();
     private static int leftScreenPos;
     private static int topScreenPos;
     private static int startTabIndex;
     private static int currentTabsCount;
     private static List<TabBase> enabledTabs;
+    private static TabBase inventoryTab;
 
     private TabsMenu() {
+    }
+
+    /**
+     * Remembers the singleton "return to inventory" tab so fanOutInventoryTab() can place it
+     * on every screen once all screens are known, not just the handful InventoryTab hardcodes
+     * at client setup (before any data-driven screen even exists).
+     */
+    public static void setInventoryTab(TabBase tab) {
+        inventoryTab = tab;
+    }
+
+    /**
+     * Places the inventory tab on every screen currently registered, so it isn't limited to
+     * InventoryTab's own hardcoded screen list (which predates data-driven screens like a mod's
+     * skill GUI). Called before data-driven tabs fan out (see TabRegistry.reloadTabs()) so the
+     * inventory tab's position relative to them is identical on every screen. Safe to call
+     * repeatedly - ScreenInfo.addTab() de-duplicates, so re-running a reload won't stack copies.
+     */
+    public static void fanOutInventoryTab() {
+        if (inventoryTab == null) {
+            return;
+        }
+        for (Class<? extends Screen> screenClass : new ArrayList<>(tabsScreens.keySet())) {
+            addTabToScreen(inventoryTab, screenClass, (player) -> 176, (player) -> 166, 10);
+        }
+    }
+
+    /**
+     * Draws our tab/next buttons ourselves rather than relying on the target screen's own
+     * render() to walk its renderables. event.addListener() adds them to the screen's widget
+     * lists for input handling, but plenty of heavily-customized mod screens (e.g. Epic Fight's
+     * SkillEditScreen) implement render() by hand and never iterate that list, which left our
+     * buttons registered and clickable but invisible. Screens that DO draw renderables normally
+     * will draw these widgets twice - harmless, since it's the same buttons at the same spot.
+     */
+    public static void renderTabButtons(ScreenEvent.Render.Post event) {
+        if (!tabsScreens.containsKey(event.getScreen().getClass())) {
+            return;
+        }
+
+        for (GuiEventListener listener : event.getScreen().children()) {
+            if (listener instanceof TabButton tabButton) {
+                tabButton.render(event.getGuiGraphics(), event.getMouseX(), event.getMouseY(), event.getPartialTick());
+            } else if (listener instanceof NextTabsButton nextTabsButton) {
+                nextTabsButton.render(event.getGuiGraphics(), event.getMouseX(), event.getMouseY(), event.getPartialTick());
+            }
+        }
     }
 
     public static void updateButtonsPosition(Screen screen, int leftScreenPos, int topScreenPos) {
@@ -43,23 +92,46 @@ public class TabsMenu {
     }
 
     public static void addTabToScreen(TabBase newTab, Class<? extends Screen> screen, Function<Player, Integer> screenWidth, Function<Player, Integer> screenHeight, int priority) {
-        LegendaryTabs.LOGGER.info("addTabToScreen called for tab {} on screen {} with priority {}", 
+        LegendaryTabs.LOGGER.info("addTabToScreen called for tab {} on screen {} with priority {}",
                 newTab.getClass().getSimpleName(), screen.getSimpleName(), priority);
-        
+
         if (tabsScreens.containsKey(screen)) {
             tabsScreens.get(screen).addTab(priority, newTab);
-            LegendaryTabs.LOGGER.info("Added tab {} to existing screen info for {}", 
+            LegendaryTabs.LOGGER.info("Added tab {} to existing screen info for {}",
                     newTab.getClass().getSimpleName(), screen.getSimpleName());
         } else {
             ScreenInfo screenInfo = new ScreenInfo(screenWidth, screenHeight, newTab, priority);
             tabsScreens.put(screen, screenInfo);
-            LegendaryTabs.LOGGER.info("Created new screen info for {} and added tab {}", 
+            LegendaryTabs.LOGGER.info("Created new screen info for {} and added tab {}",
                     screen.getSimpleName(), newTab.getClass().getSimpleName());
         }
-        
+
         LegendaryTabs.LOGGER.info("Total screens with tabs: {}", tabsScreens.size());
     }
-    
+
+    /**
+     * Registers that a screen exists (for wildcard tab discovery) without placing any tab on it
+     * yet. Used so a tab's own screen becomes visible to every other tab's fan-out pass at the
+     * same time as any other screen, rather than being seeded (and thus ordered) earlier than
+     * everything else - see DataDrivenTabBase.seedOwnedScreens(). A tab whose JSON sets
+     * show_tabs_on_screen to false skips calling this entirely for that screen, so it's never
+     * discovered by anyone and never gets a tab bar at all.
+     * <p>
+     * buttonSkin/iconOffsetX/iconOffsetY (from the owning tab's screen_sizes entry) apply to
+     * every tab's button while this screen is open, not just the owning tab's - only applied
+     * when this call actually creates the ScreenInfo (first writer wins, same as width/height).
+     */
+    public static void ensureScreenInfo(Class<? extends Screen> screen, Function<Player, Integer> screenWidth, Function<Player, Integer> screenHeight,
+                                         ResourceLocation buttonSkin, int iconOffsetX, int iconOffsetY) {
+        tabsScreens.computeIfAbsent(screen, k -> {
+            ScreenInfo screenInfo = new ScreenInfo(screenWidth, screenHeight);
+            screenInfo.buttonSkin = buttonSkin;
+            screenInfo.iconOffsetX = iconOffsetX;
+            screenInfo.iconOffsetY = iconOffsetY;
+            return screenInfo;
+        });
+    }
+
     public static java.util.Set<Class<? extends Screen>> getRegisteredScreens() {
         return tabsScreens.keySet();
     }
@@ -119,7 +191,7 @@ public class TabsMenu {
             }
 
             if (enabledTabs.size() > currentTabsCount)
-                event.addListener(new NextTabsButton(currentTabsCount, TabsMenu.leftScreenPos, TabsMenu.topScreenPos,
+                event.addListener(new NextTabsButton(currentTabsCount, TabsMenu.leftScreenPos, TabsMenu.topScreenPos, event.getScreen(),
                         button -> nextTabButtons(event.getScreen())));
         }
     }
@@ -171,21 +243,31 @@ public class TabsMenu {
         public Function<Player, Integer> width;
         public Function<Player, Integer> height;
         public Map<Integer, List<TabBase>> tabs;
-        public ScreenInfo(Function<Player, Integer> width, Function<Player, Integer> height, TabBase newTab, int priority) {
+        public ResourceLocation buttonSkin;
+        public int iconOffsetX;
+        public int iconOffsetY;
+
+        public ScreenInfo(Function<Player, Integer> width, Function<Player, Integer> height) {
             this.width = width;
             this.height = height;
             this.tabs = new TreeMap<>();
+        }
+
+        public ScreenInfo(Function<Player, Integer> width, Function<Player, Integer> height, TabBase newTab, int priority) {
+            this(width, height);
             this.addTab(priority, newTab);
         }
 
         public void addTab(int priority, TabBase newTab) {
-            if (this.tabs.containsKey(priority))
-                this.tabs.get(priority).add(newTab);
-            else {
-                ArrayList<TabBase> newTabsForPriority = new ArrayList<>();
-                newTabsForPriority.add(newTab);
-                this.tabs.put(priority, newTabsForPriority);
+            // A tab (e.g. the persistent inventory tab, or a reloaded data-driven tab) can be
+            // fanned out to the same screen more than once across repeated reloads - skip if
+            // it's already present anywhere on this screen instead of stacking duplicates.
+            for (List<TabBase> existing : this.tabs.values()) {
+                if (existing.contains(newTab)) {
+                    return;
+                }
             }
+            this.tabs.computeIfAbsent(priority, k -> new ArrayList<>()).add(newTab);
         }
     }
 }

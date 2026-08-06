@@ -27,4 +27,9 @@ public class ClientForgeEvents {
         event.getScreen();
         TabsMenu.initScreenButtons(event);
     }
+
+    @SubscribeEvent
+    public static void postRenderScreen(ScreenEvent.Render.Post event) {
+        TabsMenu.renderTabButtons(event);
+    }
 }

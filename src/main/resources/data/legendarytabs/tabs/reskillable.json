@@ -15,8 +15,5 @@
   "tooltip": "tooltip.legendarytabs.tab.reskillable.description",
   "required_mods": [
     "rereskillable"
-  ],
-  "screen_patterns": [
-    "*"
   ]
 }

@@ -16,14 +16,13 @@
   "required_mods": [
     "backpacked"
   ],
-  "screen_patterns": [
-    "*"
-  ],
   "screen_sizes": {
     "com.mrcrayfish.backpacked.client.gui.screen.inventory.BackpackScreen": {
       "width": 176,
       "height": 186,
       "priority": 10,
+      "button_skin": "legendarytabs:textures/gui/buttons_backpacked.png",
+      "icon_offset_y": -2,
       "variables": {
         "columns": {
           "source": "builtin",

@@ -12,11 +12,10 @@
     "key_binding": "gui.xaero_open_map",
     "close_screen_first": true
   },
+  "show_tabs_on_screen": false,
   "tooltip": "tooltip.legendarytabs.tab.xaeros_map.description",
   "required_mods": [
     "xaeroworldmap"
   ],
-  "screen_patterns": [
-    "*"
-  ]
+  "target_screen_class": "xaero.map.gui.GuiMap"
 }

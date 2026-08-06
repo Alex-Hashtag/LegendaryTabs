@@ -1,0 +1,27 @@
+{
+  "id": "epic_fight",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/epic.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "key.epicfight.skill_gui",
+    "close_screen_first": true
+  },
+  "tooltip": "tooltip.legendarytabs.tab.epic_fight.description",
+  "required_mods": [
+    "epicfight"
+  ],
+  "target_screen_class": "yesman.epicfight.client.gui.screen.SkillEditScreen",
+  "screen_sizes": {
+    "yesman.epicfight.client.gui.screen.SkillEditScreen": {
+      "width": 208,
+      "height": 199,
+      "priority": 50
+    }
+  }
+}

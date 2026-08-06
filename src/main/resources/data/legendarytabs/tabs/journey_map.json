@@ -15,11 +15,10 @@
     "close_screen_first": true
   },
   "tooltip": "tooltip.legendarytabs.tab.journey_map.description",
+  "show_tabs_on_screen": false,
   "required_mods": [
     "journeymap"
   ],
-  "screen_patterns": [
-    "*"
-  ]
+  "target_screen_class": "journeymap.client.ui.fullscreen.Fullscreen"
 }
 

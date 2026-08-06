@@ -16,9 +16,6 @@
   "required_mods": [
     "diet"
   ],
-  "screen_patterns": [
-    "*"
-  ],
   "screen_sizes": {
     "com.illusivesoulworks.diet.client.screen.DietScreen": {
       "width": 248,

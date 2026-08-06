@@ -16,9 +16,6 @@
   "required_mods": [
     "legendarysurvivaloverhaul"
   ],
-  "screen_patterns": [
-    "*"
-  ],
   "screen_sizes": {
     "sfiomn.legendarysurvivaloverhaul.client.screens.BodyHealthScreen": {
       "width": 176,

@@ -15,7 +15,5 @@
   "required_mods": [
     "ftbquests"
   ],
-  "screen_patterns": [
-    "*"
-  ]
+  "target_screen_class": "dev.ftb.mods.ftblibrary.ui.ScreenWrapper"
 }

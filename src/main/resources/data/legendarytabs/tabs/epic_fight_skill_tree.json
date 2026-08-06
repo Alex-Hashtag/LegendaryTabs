@@ -1,0 +1,28 @@
+{
+  "id": "epic_fight_skill_tree",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/skills.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "key.epicskills.open_skill_tree",
+    "close_screen_first": true
+  },
+  "tooltip": "tooltip.legendarytabs.tab.epic_fight_skill_tree.description",
+  "required_mods": [
+    "epicskills"
+  ],
+  "target_screen_class": "com.yesman.epicskills.client.gui.screen.SkillTreeScreen",
+  "show_tabs_on_screen": false,
+  "screen_sizes": {
+    "com.yesman.epicskills.client.gui.screen.SkillTreeScreen": {
+      "width": 176,
+      "height": 166,
+      "priority": 50
+    }
+  }
+}

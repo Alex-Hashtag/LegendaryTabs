@@ -15,7 +15,13 @@
   "required_mods": [
     "puffish_skills"
   ],
-  "screen_patterns": [
-    "*"
-  ]
+  "target_screen_class": "net.puffish.skillsmod.client.gui.SkillsScreen",
+  "show_tabs_on_screen": false,
+  "screen_sizes": {
+    "net.puffish.skillsmod.client.gui.SkillsScreen": {
+      "width": 176,
+      "height": 166,
+      "priority": 50
+    }
+  }
 }

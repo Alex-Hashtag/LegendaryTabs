@@ -16,25 +16,26 @@ public class TabData {
     private final IconData iconData;
     private final ScreenOpenAction screenOpenAction;
     private final String tooltipKey;
-    private final List<String> screenPatterns;
     private final List<String> requiredMods;
     private final String targetScreenClass;
     private final Map<String, ScreenSizeConfig> screenSizes;
     private final List<EnabledCondition> enabledConditions;
+    private final boolean showTabsOnScreen;
 
-    public TabData(String id, boolean enabled, IconData iconData, ScreenOpenAction screenOpenAction, 
-                   String tooltipKey, List<String> screenPatterns, List<String> requiredMods, String targetScreenClass,
-                   Map<String, ScreenSizeConfig> screenSizes, List<EnabledCondition> enabledConditions) {
+    public TabData(String id, boolean enabled, IconData iconData, ScreenOpenAction screenOpenAction,
+                   String tooltipKey, List<String> requiredMods, String targetScreenClass,
+                   Map<String, ScreenSizeConfig> screenSizes, List<EnabledCondition> enabledConditions,
+                   boolean showTabsOnScreen) {
         this.id = id;
         this.enabled = enabled;
         this.iconData = iconData;
         this.screenOpenAction = screenOpenAction;
         this.tooltipKey = tooltipKey;
-        this.screenPatterns = screenPatterns;
         this.requiredMods = requiredMods;
         this.targetScreenClass = targetScreenClass;
         this.screenSizes = screenSizes != null ? screenSizes : Map.of();
         this.enabledConditions = enabledConditions != null ? enabledConditions : List.of();
+        this.showTabsOnScreen = showTabsOnScreen;
     }
 
     public String getId() { return id; }
@@ -42,11 +43,18 @@ public class TabData {
     public IconData getIconData() { return iconData; }
     public ScreenOpenAction getScreenOpenAction() { return screenOpenAction; }
     public String getTooltipKey() { return tooltipKey; }
-    public List<String> getScreenPatterns() { return screenPatterns; }
     public List<String> getRequiredMods() { return requiredMods; }
     public Optional<String> getTargetScreenClass() { return Optional.ofNullable(targetScreenClass); }
     public Map<String, ScreenSizeConfig> getScreenSizes() { return screenSizes; }
     public List<EnabledCondition> getEnabledConditions() { return enabledConditions; }
+    /**
+     * When false, this tab's own screen (its screen_sizes/target_screen_class entry) never
+     * gets a tab bar at all - not this tab's button, not any other tab's. For screens with
+     * dense custom UIs (a full skill tree, a jobs menu) where the shared tab bar would just be
+     * clutter or overlap content. Defaults to true: the tab bar shows on every screen any tab
+     * registers, with every currently-enabled tab in it.
+     */
+    public boolean isShowTabsOnScreen() { return showTabsOnScreen; }
 
     public static class IconData {
         private final IconType type;
@@ -91,7 +99,8 @@ public class TabData {
         private final ActionType type;
         private final String keyBinding;
         private final ResourceLocation itemToUse;
-        private final String customAction;
+        private final String screenClassName;
+        private final List<String> constructorArgs;
         private final boolean closeScreenFirst;
 
         // Reflection action fields
@@ -102,13 +111,14 @@ public class TabData {
         // Command action field
         private final String command;
 
-        private ScreenOpenAction(ActionType type, String keyBinding, ResourceLocation itemToUse, String customAction,
-                                 boolean closeScreenFirst, String reflectionClassName, String reflectionMethodName,
-                                 boolean reflectionStatic, String command) {
+        private ScreenOpenAction(ActionType type, String keyBinding, ResourceLocation itemToUse, String screenClassName,
+                                 List<String> constructorArgs, boolean closeScreenFirst, String reflectionClassName,
+                                 String reflectionMethodName, boolean reflectionStatic, String command) {
             this.type = type;
             this.keyBinding = keyBinding;
             this.itemToUse = itemToUse;
-            this.customAction = customAction;
+            this.screenClassName = screenClassName;
+            this.constructorArgs = constructorArgs != null ? constructorArgs : List.of();
             this.closeScreenFirst = closeScreenFirst;
             this.reflectionClassName = reflectionClassName;
             this.reflectionMethodName = reflectionMethodName;
@@ -117,41 +127,38 @@ public class TabData {
         }
 
         public static ScreenOpenAction keyPress(String keyBinding, boolean closeScreenFirst) {
-            return new ScreenOpenAction(ActionType.KEY_PRESS, keyBinding, null, null, closeScreenFirst, null, null, false, null);
+            return new ScreenOpenAction(ActionType.KEY_PRESS, keyBinding, null, null, null, closeScreenFirst, null, null, false, null);
         }
 
         public static ScreenOpenAction rightClickItem(ResourceLocation itemToUse) {
-            return new ScreenOpenAction(ActionType.RIGHT_CLICK_ITEM, null, itemToUse, null, false, null, null, false, null);
+            return new ScreenOpenAction(ActionType.RIGHT_CLICK_ITEM, null, itemToUse, null, null, false, null, null, false, null);
         }
 
-        public static ScreenOpenAction custom(String customAction) {
-            return new ScreenOpenAction(ActionType.CUSTOM, null, null, customAction, false, null, null, false, null);
-        }
-
-        public static ScreenOpenAction openScreen(String screenClassName) {
-            return new ScreenOpenAction(ActionType.OPEN_SCREEN, null, null, screenClassName, false, null, null, false, null);
-        }
-
-        public static ScreenOpenAction apiCall(String callName) {
-            return new ScreenOpenAction(ActionType.API_CALL, null, null, callName, false, null, null, false, null);
+        public static ScreenOpenAction openScreen(String screenClassName, List<String> constructorArgs) {
+            return new ScreenOpenAction(ActionType.OPEN_SCREEN, null, null, screenClassName, constructorArgs, false, null, null, false, null);
         }
 
         public static ScreenOpenAction reflection(String className, String methodName, boolean isStatic, boolean closeScreenFirst) {
-            return new ScreenOpenAction(ActionType.REFLECTION, null, null, null, closeScreenFirst, className, methodName, isStatic, null);
+            return new ScreenOpenAction(ActionType.REFLECTION, null, null, null, null, closeScreenFirst, className, methodName, isStatic, null);
         }
 
         public static ScreenOpenAction command(String command, boolean closeScreenFirst) {
-            return new ScreenOpenAction(ActionType.COMMAND, null, null, null, closeScreenFirst, null, null, false, command);
+            return new ScreenOpenAction(ActionType.COMMAND, null, null, null, null, closeScreenFirst, null, null, false, command);
         }
-
-        public Optional<String> getApiCallName() { return Optional.ofNullable(customAction); }
 
         public ActionType getType() { return type; }
         public boolean isCloseScreenFirst() { return closeScreenFirst; }
         public Optional<String> getKeyBinding() { return Optional.ofNullable(keyBinding); }
         public Optional<ResourceLocation> getItemToUse() { return Optional.ofNullable(itemToUse); }
-        public Optional<String> getCustomAction() { return Optional.ofNullable(customAction); }
-        public Optional<String> getScreenClassName() { return Optional.ofNullable(customAction); }
+        public Optional<String> getScreenClassName() { return Optional.ofNullable(screenClassName); }
+        /**
+         * Ordered list of named engine-value providers (see DataDrivenTabBase's constructor arg
+         * resolver) to pass to the OPEN_SCREEN target's constructor. Empty means "use the no-arg
+         * constructor" - most vanilla-style screens have one, but some (e.g. AdvancementsScreen)
+         * need a real argument, which this lets a tab supply declaratively instead of Java having
+         * to special-case that one screen.
+         */
+        public List<String> getConstructorArgs() { return constructorArgs; }
 
         public Optional<String> getReflectionClassName() { return Optional.ofNullable(reflectionClassName); }
         public Optional<String> getReflectionMethodName() { return Optional.ofNullable(reflectionMethodName); }
@@ -161,9 +168,7 @@ public class TabData {
         public enum ActionType {
             KEY_PRESS,
             RIGHT_CLICK_ITEM,
-            CUSTOM,
             OPEN_SCREEN,
-            API_CALL,
             REFLECTION,
             COMMAND
         }
@@ -215,19 +220,26 @@ public class TabData {
         private final Map<String, SizeVariable> variables;
         private final String widthFormula;
         private final String heightFormula;
+        private final ResourceLocation buttonSkin;
+        private final int iconOffsetX;
+        private final int iconOffsetY;
 
         public ScreenSizeConfig(int width, int height, int priority) {
-            this(width, height, priority, Map.of(), null, null);
+            this(width, height, priority, Map.of(), null, null, null, 0, 0);
         }
 
         public ScreenSizeConfig(int width, int height, int priority, Map<String, SizeVariable> variables,
-                                 String widthFormula, String heightFormula) {
+                                 String widthFormula, String heightFormula, ResourceLocation buttonSkin,
+                                 int iconOffsetX, int iconOffsetY) {
             this.width = width;
             this.height = height;
             this.priority = priority;
             this.variables = variables != null ? variables : Map.of();
             this.widthFormula = widthFormula;
             this.heightFormula = heightFormula;
+            this.buttonSkin = buttonSkin;
+            this.iconOffsetX = iconOffsetX;
+            this.iconOffsetY = iconOffsetY;
         }
 
         public int getWidth() { return width; }
@@ -236,6 +248,16 @@ public class TabData {
         public Map<String, SizeVariable> getVariables() { return variables; }
         public Optional<String> getWidthFormula() { return Optional.ofNullable(widthFormula); }
         public Optional<String> getHeightFormula() { return Optional.ofNullable(heightFormula); }
+        /**
+         * Replaces the shared button-background sheet (legendarytabs:textures/gui/buttons.png)
+         * for every tab's button while THIS screen is open - not just the tab that declared it.
+         * The tab bar is shared UI chrome, so its skin is a property of the screen being viewed,
+         * the same way its width/height/priority are.
+         */
+        public Optional<ResourceLocation> getButtonSkin() { return Optional.ofNullable(buttonSkin); }
+        /** Added to the default icon offset (4, 4) for every tab button while this screen is open - lets a custom button_skin's icon slot sit somewhere other than the default sheet's. */
+        public int getIconOffsetX() { return iconOffsetX; }
+        public int getIconOffsetY() { return iconOffsetY; }
 
         public int getWidth(Player player) {
             return widthFormula != null ? (int) Math.round(evaluate(widthFormula, player)) : width;

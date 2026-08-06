@@ -22,9 +22,6 @@
       "curio_slot": "back"
     }
   ],
-  "screen_patterns": [
-    "*"
-  ],
   "screen_sizes": {
     "com.tiviacz.travelersbackpack.client.screens.BackpackScreen": {
       "width": 176,

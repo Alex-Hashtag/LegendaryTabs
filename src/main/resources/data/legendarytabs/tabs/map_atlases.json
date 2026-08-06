@@ -31,7 +31,12 @@
       ]
     }
   ],
-  "screen_patterns": [
-    "*"
-  ]
+  "target_screen_class": "pepjebs.mapatlases.client.screen.AtlasOverviewScreen",
+  "screen_sizes": {
+    "pepjebs.mapatlases.client.screen.AtlasOverviewScreen": {
+      "width": 162,
+      "height": 167,
+      "priority": 50
+    }
+  }
 }

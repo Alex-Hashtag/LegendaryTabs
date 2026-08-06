@@ -2,17 +2,17 @@ package sfiomn.legendarytabs.client.screens;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
-import sfiomn.legendarytabs.LegendaryTabs;
+import sfiomn.legendarytabs.api.tabs_menu.TabBase;
+import sfiomn.legendarytabs.api.tabs_menu.TabsMenu;
 import sfiomn.legendarytabs.config.Config;
 
 import static sfiomn.legendarytabs.api.tabs_menu.TabBase.TAB_HEIGHT;
 import static sfiomn.legendarytabs.api.tabs_menu.TabBase.TAB_WIDTH;
 
 public class NextTabsButton extends Button {
-    private final ResourceLocation BUTTONS_TEXTURE = new ResourceLocation(LegendaryTabs.MOD_ID, "textures/gui/buttons.png");
     public static final int LEFT_ARROW_TEX_X = 0;
     public static final int LEFT_ARROW_TEX_Y = 23;
     public static final int LEFT_ARROW_PRESSED_TEX_X = 26;
@@ -26,10 +26,12 @@ public class NextTabsButton extends Button {
     private static final int BUTTONS_TEXTURE_WIDTH = 64;
     private static final int BUTTONS_TEXTURE_HEIGHT = 64;
     public int tabPositionIndex;
+    private final Screen screen;
 
-    public NextTabsButton(int tabPositionIndex, int leftScreenPos, int topScreenPos, net.minecraft.client.gui.components.Button.OnPress press) {
+    public NextTabsButton(int tabPositionIndex, int leftScreenPos, int topScreenPos, Screen screen, net.minecraft.client.gui.components.Button.OnPress press) {
         super(leftScreenPos + tabPositionIndex * (TAB_WIDTH + 1) + Config.Baked.tabsMenuOffsetX, topScreenPos - TAB_HEIGHT + Config.Baked.tabsMenuOffsetY, NEXT_TABS_BUTTON_WIDTH, NEXT_TABS_BUTTON_HEIGHT, Component.literal(""), press, DEFAULT_NARRATION);
         this.tabPositionIndex = tabPositionIndex;
+        this.screen = screen;
     }
 
     @Override
@@ -41,7 +43,12 @@ public class NextTabsButton extends Button {
             texY = RIGHT_ARROW_PRESSED_TEX_Y;
         }
 
-        gui.blit(BUTTONS_TEXTURE, this.getX(), this.getY(), texX, texY, NEXT_TABS_BUTTON_WIDTH, NEXT_TABS_BUTTON_HEIGHT, BUTTONS_TEXTURE_WIDTH, BUTTONS_TEXTURE_HEIGHT);
+        // Same skin as the tab buttons on this screen - it's the screen's chrome, not this
+        // widget's own, so it must match whatever legendarytabs:tabs/*.json declared for it.
+        TabsMenu.ScreenInfo screenInfo = TabsMenu.getScreenInfo(this.screen.getClass());
+        var buttonTexture = screenInfo != null && screenInfo.buttonSkin != null ? screenInfo.buttonSkin : TabBase.DEFAULT_BUTTONS_TEXTURE;
+
+        gui.blit(buttonTexture, this.getX(), this.getY(), texX, texY, NEXT_TABS_BUTTON_WIDTH, NEXT_TABS_BUTTON_HEIGHT, BUTTONS_TEXTURE_WIDTH, BUTTONS_TEXTURE_HEIGHT);
     }
 
     public void updatePosition(int leftScreenPos, int topScreenPos) {

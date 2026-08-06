@@ -1,0 +1,33 @@
+{
+  "id": "sophisticated_backpacks",
+  "enabled": true,
+  "icon": {
+    "type": "texture",
+    "texture": "legendarytabs:textures/gui/backpacked.png",
+    "u": 0,
+    "v": 0
+  },
+  "screen_open_action": {
+    "type": "key_press",
+    "key_binding": "key.sophisticatedbackpacks.open_backpack",
+    "close_screen_first": true
+  },
+  "tooltip": "tooltip.legendarytabs.tab.backpack.description",
+  "required_mods": [
+    "sophisticatedbackpacks"
+  ],
+  "target_screen_class": "net.p3pp3rf1y.sophisticatedbackpacks.client.gui.BackpackScreen",
+  "enabled_conditions": [
+    {
+      "type": "item_in_inventory",
+      "item": "sophisticatedbackpacks:*"
+    }
+  ],
+  "screen_sizes": {
+    "net.p3pp3rf1y.sophisticatedbackpacks.client.gui.BackpackScreen": {
+      "width": 176,
+      "height": 166,
+      "priority": 50
+    }
+  }
+}

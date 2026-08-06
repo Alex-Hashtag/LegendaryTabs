@@ -9,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.NotNull;
 import sfiomn.legendarytabs.LegendaryTabs;
 import sfiomn.legendarytabs.api.tabs_menu.TabBase;
+import sfiomn.legendarytabs.api.tabs_menu.TabsMenu;
 import sfiomn.legendarytabs.config.Config;
 
 import static sfiomn.legendarytabs.api.tabs_menu.TabBase.TAB_HEIGHT;
@@ -52,7 +53,14 @@ public class TabButton extends Button {
 
     @Override
     public void renderWidget(@NotNull GuiGraphics gui, int mouseX, int mouseY, float partial) {
-        this.tabBase.render(gui, this.getX(), this.getY(), this.isDisabled || this.isMouseOver(mouseX, mouseY));
+        // The button skin/icon offset belong to the screen currently open, not to this
+        // particular tab - every tab's button on this screen shares the same look.
+        TabsMenu.ScreenInfo screenInfo = TabsMenu.getScreenInfo(this.screen.getClass());
+        var buttonTexture = screenInfo != null ? screenInfo.buttonSkin : null;
+        int iconOffsetX = screenInfo != null ? screenInfo.iconOffsetX : 0;
+        int iconOffsetY = screenInfo != null ? screenInfo.iconOffsetY : 0;
+
+        this.tabBase.render(gui, this.getX(), this.getY(), this.isDisabled || this.isMouseOver(mouseX, mouseY), buttonTexture, iconOffsetX, iconOffsetY);
     }
 
     public void updatePosition(int leftScreenPos, int topScreenPos) {
