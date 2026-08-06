@@ -11,9 +11,10 @@
     "type": "key_press",
     "key_binding": "key.ftbquests.quests"
   },
+  "show_tabs_on_screen": false,
   "tooltip": "tooltip.legendarytabs.tab.ftb_quests.description",
   "required_mods": [
     "ftbquests"
   ],
-  "target_screen_class": "dev.ftb.mods.ftblibrary.ui.ScreenWrapper"
+  "target_screen_class": "dev.ftb.mods.ftbquests.client.gui.quests.QuestScreen"
 }

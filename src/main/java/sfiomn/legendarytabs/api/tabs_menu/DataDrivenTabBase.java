@@ -81,10 +81,13 @@ public class DataDrivenTabBase extends TabBase {
         });
     }
 
-    @SuppressWarnings("unchecked")
     private void seedScreen(String className, TabData.ScreenSizeConfig sizeConfig) {
         try {
-            Class<? extends Screen> screenClass = (Class<? extends Screen>) Class.forName(className);
+            // Not necessarily a real net.minecraft.client.gui.screens.Screen - for mods that open
+            // every GUI through one generic wrapper Screen (see TabsMenu.resolveScreenIdentity()),
+            // this is the wrapped GUI's own class instead, which never extends Screen. It's only
+            // ever used as a map key here, never instantiated or treated as a Screen.
+            Class<?> screenClass = Class.forName(className);
             Function<Player, Integer> width = sizeConfig != null ? sizeConfig::getWidth : (player) -> 176;
             Function<Player, Integer> height = sizeConfig != null ? sizeConfig::getHeight : (player) -> 166;
             ResourceLocation buttonSkin = sizeConfig != null ? sizeConfig.getButtonSkin().orElse(null) : null;
@@ -507,7 +510,7 @@ public class DataDrivenTabBase extends TabBase {
 
     @Override
     public boolean isCurrentlyUsed(Screen currentScreen) {
-        String screenClassName = currentScreen.getClass().getName();
+        String screenClassName = TabsMenu.resolveScreenIdentity(currentScreen).getName();
         
         // Check if the tab specifies a target screen class
         var targetScreenClass = tabData.getTargetScreenClass();
@@ -561,7 +564,7 @@ public class DataDrivenTabBase extends TabBase {
         // This way we don't hardcode mod-specific screens
         var existingScreens = TabsMenu.getRegisteredScreens();
 
-        for (Class<? extends Screen> screenClass : existingScreens) {
+        for (Class<?> screenClass : existingScreens) {
             // Skip InventoryScreen since we already added it above. Screens this tab owns
             // (seeded but not yet populated by seedOwnedScreens()) are handled below like any
             // other screen, so this tab's own position among its peers is the same everywhere.

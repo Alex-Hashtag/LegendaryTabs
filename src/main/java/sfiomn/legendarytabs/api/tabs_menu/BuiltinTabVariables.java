@@ -33,6 +33,8 @@ public class BuiltinTabVariables {
             case "backpacked_visible" -> backpackedVisible(player) ? 1.0 : 0.0;
             case "travelers_tanks_visible" -> travelersTanksVisible(player) ? 1.0 : 0.0;
             case "diet_group_count" -> (double) dietGroupCount(player);
+            case "screen_width" -> (double) Minecraft.getInstance().getWindow().getGuiScaledWidth();
+            case "screen_height" -> (double) Minecraft.getInstance().getWindow().getGuiScaledHeight();
             default -> null;
         };
     }

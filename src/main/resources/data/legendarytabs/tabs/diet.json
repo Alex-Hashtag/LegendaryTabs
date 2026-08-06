@@ -19,15 +19,8 @@
   "screen_sizes": {
     "com.illusivesoulworks.diet.client.screen.DietScreen": {
       "width": 248,
-      "height": 166,
-      "priority": 60,
-      "variables": {
-        "group_count": {
-          "source": "builtin",
-          "id": "diet_group_count"
-        }
-      },
-      "height_formula": "group_count * 20 + 60"
+      "height": 160,
+      "priority": 60
     }
   }
 }
