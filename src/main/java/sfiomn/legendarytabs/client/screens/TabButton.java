@@ -55,7 +55,7 @@ public class TabButton extends Button {
     public void renderWidget(@NotNull GuiGraphics gui, int mouseX, int mouseY, float partial) {
         // The button skin/icon offset belong to the screen currently open, not to this
         // particular tab - every tab's button on this screen shares the same look.
-        TabsMenu.ScreenInfo screenInfo = TabsMenu.getScreenInfo(this.screen.getClass());
+        TabsMenu.ScreenInfo screenInfo = TabsMenu.getScreenInfo(TabsMenu.resolveScreenIdentity(this.screen));
         var buttonTexture = screenInfo != null ? screenInfo.buttonSkin : null;
         int iconOffsetX = screenInfo != null ? screenInfo.iconOffsetX : 0;
         int iconOffsetY = screenInfo != null ? screenInfo.iconOffsetY : 0;

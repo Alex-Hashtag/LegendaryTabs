@@ -18,7 +18,7 @@ import static sfiomn.legendarytabs.api.tabs_menu.TabBase.TAB_HEIGHT;
 import static sfiomn.legendarytabs.api.tabs_menu.TabBase.TAB_WIDTH;
 
 public class TabsMenu {
-    private static final Map<Class<? extends Screen>, ScreenInfo> tabsScreens = new LinkedHashMap<>();
+    private static final Map<Class<?>, ScreenInfo> tabsScreens = new LinkedHashMap<>();
     private static int leftScreenPos;
     private static int topScreenPos;
     private static int startTabIndex;
@@ -49,9 +49,34 @@ public class TabsMenu {
         if (inventoryTab == null) {
             return;
         }
-        for (Class<? extends Screen> screenClass : new ArrayList<>(tabsScreens.keySet())) {
+        for (Class<?> screenClass : new ArrayList<>(tabsScreens.keySet())) {
             addTabToScreen(inventoryTab, screenClass, (player) -> 176, (player) -> 166, 10);
         }
+    }
+
+    /**
+     * Some mods (e.g. FTB Library) open every one of their GUIs through the same generic wrapper
+     * Screen subclass (e.g. ScreenWrapper), with the actual per-GUI identity only available on
+     * the wrapped object returned by its no-arg getGui() method. Keying screens by
+     * Screen.getClass() alone would then conflate unrelated GUIs (FTB Quests and FTB Teams both
+     * report as ScreenWrapper), so wrapped screens are instead keyed by the wrapped object's
+     * class. Uses reflection rather than a hard type reference since the wrapping mod is an
+     * optional dependency. Screens without a getGui() method are keyed by their own class as
+     * before.
+     */
+    public static Class<?> resolveScreenIdentity(Screen screen) {
+        try {
+            java.lang.reflect.Method getGui = screen.getClass().getMethod("getGui");
+            Object gui = getGui.invoke(screen);
+            if (gui != null) {
+                return gui.getClass();
+            }
+        } catch (NoSuchMethodException ignored) {
+            // Not a wrapper screen - identify it by its own class.
+        } catch (Exception e) {
+            LegendaryTabs.LOGGER.debug("Failed to resolve wrapped GUI for screen {}: {}", screen.getClass().getName(), e.getMessage());
+        }
+        return screen.getClass();
     }
 
     /**
@@ -63,7 +88,7 @@ public class TabsMenu {
      * will draw these widgets twice - harmless, since it's the same buttons at the same spot.
      */
     public static void renderTabButtons(ScreenEvent.Render.Post event) {
-        if (!tabsScreens.containsKey(event.getScreen().getClass())) {
+        if (!tabsScreens.containsKey(resolveScreenIdentity(event.getScreen()))) {
             return;
         }
 
@@ -91,7 +116,7 @@ public class TabsMenu {
         }
     }
 
-    public static void addTabToScreen(TabBase newTab, Class<? extends Screen> screen, Function<Player, Integer> screenWidth, Function<Player, Integer> screenHeight, int priority) {
+    public static void addTabToScreen(TabBase newTab, Class<?> screen, Function<Player, Integer> screenWidth, Function<Player, Integer> screenHeight, int priority) {
         LegendaryTabs.LOGGER.info("addTabToScreen called for tab {} on screen {} with priority {}",
                 newTab.getClass().getSimpleName(), screen.getSimpleName(), priority);
 
@@ -121,7 +146,7 @@ public class TabsMenu {
      * every tab's button while this screen is open, not just the owning tab's - only applied
      * when this call actually creates the ScreenInfo (first writer wins, same as width/height).
      */
-    public static void ensureScreenInfo(Class<? extends Screen> screen, Function<Player, Integer> screenWidth, Function<Player, Integer> screenHeight,
+    public static void ensureScreenInfo(Class<?> screen, Function<Player, Integer> screenWidth, Function<Player, Integer> screenHeight,
                                          ResourceLocation buttonSkin, int iconOffsetX, int iconOffsetY) {
         tabsScreens.computeIfAbsent(screen, k -> {
             ScreenInfo screenInfo = new ScreenInfo(screenWidth, screenHeight);
@@ -132,27 +157,29 @@ public class TabsMenu {
         });
     }
 
-    public static java.util.Set<Class<? extends Screen>> getRegisteredScreens() {
+    public static java.util.Set<Class<?>> getRegisteredScreens() {
         return tabsScreens.keySet();
     }
-    
-    public static ScreenInfo getScreenInfo(Class<? extends Screen> screenClass) {
+
+    public static ScreenInfo getScreenInfo(Class<?> screenClass) {
         return tabsScreens.get(screenClass);
     }
 
     public static void initScreenButtons(ScreenEvent.Init.Post event) {
         LegendaryTabs.LOGGER.info("initScreenButtons called for screen: {}", event.getScreen().getClass().getSimpleName());
         LegendaryTabs.LOGGER.info("Registered screens: {}", tabsScreens.keySet().stream().map(Class::getSimpleName).toList());
-        
-        if (tabsScreens.containsKey(event.getScreen().getClass())) {
-            LegendaryTabs.LOGGER.info("Found screen info for: {}", event.getScreen().getClass().getSimpleName());
-            
+
+        Class<?> screenIdentity = resolveScreenIdentity(event.getScreen());
+
+        if (tabsScreens.containsKey(screenIdentity)) {
+            LegendaryTabs.LOGGER.info("Found screen info for: {}", screenIdentity.getSimpleName());
+
             if (Minecraft.getInstance().player == null) {
                 LegendaryTabs.LOGGER.warn("Player is null, skipping tab initialization");
                 return;
             }
 
-            ScreenInfo screenInfo = tabsScreens.get(event.getScreen().getClass());
+            ScreenInfo screenInfo = tabsScreens.get(screenIdentity);
             TabsMenu.leftScreenPos = (event.getScreen().width - screenInfo.width.apply(Minecraft.getInstance().player)) / 2;
             TabsMenu.topScreenPos = (event.getScreen().height - screenInfo.height.apply(Minecraft.getInstance().player)) / 2;
 

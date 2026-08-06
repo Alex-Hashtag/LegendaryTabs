@@ -17,5 +17,22 @@
   "required_mods": [
     "ftbteams"
   ],
-  "target_screen_class": "dev.ftb.mods.ftblibrary.ui.ScreenWrapper"
+  "target_screen_class": "dev.ftb.mods.ftbteams.client.gui.MyTeamScreen",
+  "screen_sizes": {
+    "dev.ftb.mods.ftbteams.client.gui.MyTeamScreen": {
+      "priority": 60,
+      "variables": {
+        "screen_width": {
+          "source": "builtin",
+          "id": "screen_width"
+        },
+        "screen_height": {
+          "source": "builtin",
+          "id": "screen_height"
+        }
+      },
+      "width_formula": "screen_width * 4 / 5",
+      "height_formula": "screen_height * 4 / 5"
+    }
+  }
 }

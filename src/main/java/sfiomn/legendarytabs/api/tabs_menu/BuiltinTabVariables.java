@@ -4,6 +4,7 @@ import com.mrcrayfish.backpacked.BackpackHelper;
 import com.mrcrayfish.backpacked.item.BackpackItem;
 import com.tiviacz.travelersbackpack.capability.AttachmentUtils;
 import com.tiviacz.travelersbackpack.inventory.BackpackWrapper;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import sfiomn.legendarytabs.LegendaryTabs;
@@ -27,6 +28,8 @@ public class BuiltinTabVariables {
             case "backpacked_visible" -> backpackedVisible(player) ? 1.0 : 0.0;
             case "travelers_tanks_visible" -> travelersTanksVisible(player) ? 1.0 : 0.0;
             case "diet_group_count" -> (double) dietGroupCount(player);
+            case "screen_width" -> (double) Minecraft.getInstance().getWindow().getGuiScaledWidth();
+            case "screen_height" -> (double) Minecraft.getInstance().getWindow().getGuiScaledHeight();
             default -> null;
         };
     }
@@ -56,8 +59,8 @@ public class BuiltinTabVariables {
     }
 
     /**
-     * Diet has no NeoForge build for 1.21.1 (abandoned on Forge 1.20.1), so
-     * LegendaryTabs.dietLoaded can never be true here - always resolves to 0.
+     * diet.json uses a fixed screen height rather than a group_count-driven formula, so nothing
+     * currently references this builtin - kept as a stub returning 0 in case that changes.
      */
     private static int dietGroupCount(Player player) {
         return 0;

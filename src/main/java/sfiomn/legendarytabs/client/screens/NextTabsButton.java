@@ -45,7 +45,7 @@ public class NextTabsButton extends Button {
 
         // Same skin as the tab buttons on this screen - it's the screen's chrome, not this
         // widget's own, so it must match whatever legendarytabs:tabs/*.json declared for it.
-        TabsMenu.ScreenInfo screenInfo = TabsMenu.getScreenInfo(this.screen.getClass());
+        TabsMenu.ScreenInfo screenInfo = TabsMenu.getScreenInfo(TabsMenu.resolveScreenIdentity(this.screen));
         var buttonTexture = screenInfo != null && screenInfo.buttonSkin != null ? screenInfo.buttonSkin : TabBase.DEFAULT_BUTTONS_TEXTURE;
 
         gui.blit(buttonTexture, this.getX(), this.getY(), texX, texY, NEXT_TABS_BUTTON_WIDTH, NEXT_TABS_BUTTON_HEIGHT, BUTTONS_TEXTURE_WIDTH, BUTTONS_TEXTURE_HEIGHT);

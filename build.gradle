@@ -100,7 +100,8 @@ dependencies {
     implementation "curse.maven:legendarysurvivaloverhaul-840254:8569556"
     implementation "curse.maven:backpacked-352835:7866688"
     implementation "curse.maven:framework-549225:7530361" // Required library for Backpacked
-    // Diet has no NeoForge build (abandoned on Forge 1.20.1) - dropped, see BuiltinTabVariables
+    implementation "curse.maven:spectre-lib-unofficial-port-1566422:8204601" // Required library for Diet (unofficial port)
+    implementation "curse.maven:diet-unofficial-port-1566434:8204918" // Unofficial NeoForge 1.21.1 port
     implementation "curse.maven:xaerosmap-317780:8449921"
     implementation "curse.maven:epic-fight-mod-405076:8175609"
     implementation "curse.maven:jobsplus-916985:8125195"
@@ -119,8 +120,8 @@ dependencies {
     // Other external libraries are kept as compileOnly so the project still builds,
     // but they are NOT loaded during devbuild testing.
     compileOnly "curse.maven:reskillablereimagined-1170464:7982937"
-    compileOnly "curse.maven:ftbquest-289412:8534556"
-    compileOnly "curse.maven:ftbteams-404468:7878281"
+    implementation "curse.maven:ftbquest-289412:8534556"
+    implementation "curse.maven:ftbteams-404468:7878281"
     compileOnly "curse.maven:mapatlases-519759:8588690"
     compileOnly "curse.maven:moonlightapi-499980:8578515"
     // Passive Skill Tree and its Item Production Lib dependency have no NeoForge build
@@ -129,7 +130,7 @@ dependencies {
     compileOnly "curse.maven:pufferfishsskills-835091:8547654"
     compileOnly "curse.maven:travelersbackpack-321117:8527307"
 
-    compileOnly "curse.maven:ftblibrary-404465:8569579"
+    implementation "curse.maven:ftblibrary-404465:8569579"
     compileOnly "curse.maven:controlling-250398:6368976"
     compileOnly "curse.maven:searchables-858542:5831692"
 
