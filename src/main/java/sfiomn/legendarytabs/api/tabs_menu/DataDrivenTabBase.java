@@ -3,19 +3,19 @@ package sfiomn.legendarytabs.api.tabs_menu;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import sfiomn.legendarytabs.LegendaryTabs;
 
 import java.lang.reflect.Constructor;
@@ -106,7 +106,7 @@ public class DataDrivenTabBase extends TabBase {
         }
 
         TabData.ScreenOpenAction action = tabData.getScreenOpenAction();
-        
+
         switch (action.getType()) {
             case KEY_PRESS -> action.getKeyBinding().ifPresent(keyBinding ->
                     KeyPressSimulator.press(keyBinding, action.isCloseScreenFirst()));
@@ -195,13 +195,8 @@ public class DataDrivenTabBase extends TabBase {
             }
 
             if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.connection != null) {
-                Minecraft.getInstance().player.connection.send(new net.minecraft.network.protocol.game.ServerboundChatCommandPacket(
-                        command,
-                        java.time.Instant.now(),
-                        0L,
-                        net.minecraft.commands.arguments.ArgumentSignatures.EMPTY,
-                        new net.minecraft.network.chat.LastSeenMessages.Update(0, new java.util.BitSet(20))
-                ));
+                Minecraft.getInstance().player.connection.send(
+                        new net.minecraft.network.protocol.game.ServerboundChatCommandPacket(command));
             } else {
                 LegendaryTabs.LOGGER.warn("Cannot execute command /{}: player or connection is null", command);
             }
@@ -256,11 +251,11 @@ public class DataDrivenTabBase extends TabBase {
 
     private void applySimulatedKeyPress(net.minecraft.client.KeyMapping keyMapping, InputConstants.Key key, boolean activeBinding) {
         if (activeBinding) {
-            // Standard Forge static path. This is what a real physical key press goes through:
+            // Standard static path. This is what a real physical key press goes through:
             // it updates the KeyMapping instance that mods reference via KeyMapping.ALL / options.
             net.minecraft.client.KeyMapping.click(key);
             net.minecraft.client.KeyMapping.set(key, true);
-            LegendaryTabs.LOGGER.info("Registered press via Forge static path for key: {}", key.getName());
+            LegendaryTabs.LOGGER.info("Registered press via static path for key: {}", key.getName());
         } else {
             // Unbound, or a binding whose key is claimed by another KeyMapping in the static MAP.
             // The static path would hit the wrong mapping (or no mapping), so manipulate the
@@ -277,7 +272,7 @@ public class DataDrivenTabBase extends TabBase {
         // InputEvent.Key (e.g. JourneyMap, Pufferfish's Skills) also detect the press.
         if (key != InputConstants.UNKNOWN) {
             try {
-                MinecraftForge.EVENT_BUS.post(new InputEvent.Key(key.getValue(), 0, 1, 0));
+                NeoForge.EVENT_BUS.post(new InputEvent.Key(key.getValue(), 0, 1, 0));
                 LegendaryTabs.LOGGER.debug("Posted InputEvent.Key for: {}", keyMapping.getName());
             } catch (Exception e) {
                 LegendaryTabs.LOGGER.debug("Failed to post InputEvent.Key for {}: {}", keyMapping.getName(), e.getMessage());
@@ -288,7 +283,7 @@ public class DataDrivenTabBase extends TabBase {
 
         // Hold the press for the remainder of this tick, then release at the end so mod tick
         // handlers have a full tick to observe isDown/consumeClick before it is cleared.
-        MinecraftForge.EVENT_BUS.register(new OneShotClientTickListenerLowest(TickEvent.Phase.END, () -> {
+        NeoForge.EVENT_BUS.register(new OneShotClientTickListenerLowest(() -> {
             keyMapping.setDown(false);
             if (activeBinding) {
                 net.minecraft.client.KeyMapping.set(key, false);
@@ -302,9 +297,9 @@ public class DataDrivenTabBase extends TabBase {
             var mapField = net.minecraft.client.KeyMapping.class.getDeclaredField("MAP");
             mapField.setAccessible(true);
             Object map = mapField.get(null);
-            if (map instanceof net.minecraftforge.client.settings.KeyMappingLookup lookup) {
-                // Forge 1.20+ stores bindings in a KeyMappingLookup that handles conflict contexts/modifiers.
-                // If our mapping is among the active ones for this key, the standard Forge path will update it.
+            if (map instanceof net.neoforged.neoforge.client.settings.KeyMappingLookup lookup) {
+                // NeoForge stores bindings in a KeyMappingLookup that handles conflict contexts/modifiers.
+                // If our mapping is among the active ones for this key, the standard path will update it.
                 return lookup.getAll(key).contains(keyMapping);
             } else if (map instanceof java.util.Map<?, ?> rawMap) {
                 @SuppressWarnings("unchecked")
@@ -330,7 +325,7 @@ public class DataDrivenTabBase extends TabBase {
     }
 
     private void simulateRightClickItem(ResourceLocation itemId, Player player) {
-        var item = ForgeRegistries.ITEMS.getValue(itemId);
+        var item = BuiltInRegistries.ITEM.getOptional(itemId).orElse(null);
         if (item == null) return;
 
         // Prefer a real right-click through the game mode if the item is currently held,
@@ -354,20 +349,19 @@ public class DataDrivenTabBase extends TabBase {
 
     private ItemStack findItemStack(ResourceLocation itemId, Player player) {
         for (ItemStack stack : player.getInventory().items) {
-            ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+            ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
             if (id != null && id.equals(itemId)) return stack;
         }
         if (LegendaryTabs.curiosLoaded) {
             try {
-                var helper = top.theillusivec4.curios.api.CuriosApi.getCuriosHelper();
-                var lazyOpt = helper.getCuriosHandler(player);
-                if (lazyOpt.isPresent()) {
-                    var handler = lazyOpt.resolve().get();
+                var handlerOpt = top.theillusivec4.curios.api.CuriosApi.getCuriosInventory(player);
+                if (handlerOpt.isPresent()) {
+                    var handler = handlerOpt.get();
                     for (var entry : handler.getCurios().entrySet()) {
                         var stacksHandler = entry.getValue().getStacks();
                         for (int i = 0; i < stacksHandler.getSlots(); i++) {
                             ItemStack stack = stacksHandler.getStackInSlot(i);
-                            ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+                            ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
                             if (id != null && id.equals(itemId)) return stack;
                         }
                     }
@@ -381,12 +375,12 @@ public class DataDrivenTabBase extends TabBase {
     @Override
     public boolean isEnabled(Player player) {
         LegendaryTabs.LOGGER.info("Checking isEnabled for tab: {}", tabData.getId());
-        
+
         if (!tabData.isEnabled()) {
             LegendaryTabs.LOGGER.info("Tab {} disabled in data", tabData.getId());
             return false;
         }
-        
+
         // Check if all required mods are loaded
         for (String modId : tabData.getRequiredMods()) {
             boolean modLoaded = ModList.get().isLoaded(modId);
@@ -395,7 +389,7 @@ public class DataDrivenTabBase extends TabBase {
                 return false;
             }
         }
-        
+
         // Check enabled_conditions — all conditions must pass
         for (TabData.EnabledCondition condition : tabData.getEnabledConditions()) {
             if (!checkEnabledCondition(condition, player)) {
@@ -411,7 +405,7 @@ public class DataDrivenTabBase extends TabBase {
         return switch (condition.getType()) {
             case ITEM_IN_INVENTORY -> {
                 for (ItemStack stack : player.getInventory().items) {
-                    ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+                    ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
                     if (id != null && condition.matchesItem(id)) yield true;
                 }
                 yield false;
@@ -419,7 +413,7 @@ public class DataDrivenTabBase extends TabBase {
             case ITEM_IN_HOTBAR -> {
                 for (int i = 0; i < 9; i++) {
                     ItemStack stack = player.getInventory().items.get(i);
-                    ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+                    ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
                     if (id != null && condition.matchesItem(id)) yield true;
                 }
                 yield false;
@@ -427,18 +421,17 @@ public class DataDrivenTabBase extends TabBase {
             case ITEM_IN_CURIO -> {
                 if (!LegendaryTabs.curiosLoaded) yield false;
                 try {
-                    var helper = top.theillusivec4.curios.api.CuriosApi.getCuriosHelper();
                     String slotId = condition.getCurioSlot().orElse(null);
-                    var lazyOpt = helper.getCuriosHandler(player);
-                    if (lazyOpt.isPresent()) {
-                        var handler = lazyOpt.resolve().get();
+                    var handlerOpt = top.theillusivec4.curios.api.CuriosApi.getCuriosInventory(player);
+                    if (handlerOpt.isPresent()) {
+                        var handler = handlerOpt.get();
                         var curios = handler.getCurios();
                         for (var entry : curios.entrySet()) {
                             if (slotId != null && !entry.getKey().equals(slotId)) continue;
                             var stacksHandler = entry.getValue().getStacks();
                             for (int i = 0; i < stacksHandler.getSlots(); i++) {
                                 ItemStack stack = stacksHandler.getStackInSlot(i);
-                                ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+                                ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
                                 if (id != null && condition.matchesItem(id)) yield true;
                             }
                         }
@@ -460,13 +453,13 @@ public class DataDrivenTabBase extends TabBase {
     @Override
     public ResourceLocation getIconTexture() {
         TabData.IconData iconData = tabData.getIconData();
-        
+
         if (iconData.getType() == TabData.IconData.IconType.TEXTURE) {
             return iconData.getTextureLocation().orElse(null);
         }
-        
+
         // For items, we'll return a default texture and override the render method
-        return new ResourceLocation(LegendaryTabs.MOD_ID, "textures/gui/item_placeholder.png");
+        return ResourceLocation.fromNamespaceAndPath(LegendaryTabs.MOD_ID, "textures/gui/item_placeholder.png");
     }
 
     @Override
@@ -493,7 +486,7 @@ public class DataDrivenTabBase extends TabBase {
 
             // Render item icon
             iconData.getItemId().ifPresent(itemId -> {
-                var item = ForgeRegistries.ITEMS.getValue(itemId);
+                var item = BuiltInRegistries.ITEM.getOptional(itemId).orElse(null);
                 if (item != null) {
                     ItemStack itemStack = new ItemStack(item);
                     gui.renderItem(itemStack, x + ICON_OFFSET_X + iconOffsetX, y + ICON_OFFSET_Y + iconOffsetY);
@@ -508,17 +501,17 @@ public class DataDrivenTabBase extends TabBase {
     @Override
     public boolean isCurrentlyUsed(Screen currentScreen) {
         String screenClassName = currentScreen.getClass().getName();
-        
+
         // Check if the tab specifies a target screen class
         var targetScreenClass = tabData.getTargetScreenClass();
         if (targetScreenClass.isPresent()) {
             // Only consider the tab "used" when we're on the target screen
             boolean isOnTargetScreen = screenClassName.equals(targetScreenClass.get());
-            LegendaryTabs.LOGGER.debug("Tab {} target screen check: current={}, target={}, isUsed={}", 
+            LegendaryTabs.LOGGER.debug("Tab {} target screen check: current={}, target={}, isUsed={}",
                     tabData.getId(), screenClassName, targetScreenClass.get(), isOnTargetScreen);
             return isOnTargetScreen;
         }
-        
+
         // If no target screen class is specified, never disable the button
         // This allows the tab to be clicked from any screen
         LegendaryTabs.LOGGER.debug("Tab {} has no target screen class specified - never disabled", tabData.getId());
@@ -592,39 +585,17 @@ public class DataDrivenTabBase extends TabBase {
         return tabData;
     }
 
-    private static class OneShotClientTickListener {
-        private final TickEvent.Phase phase;
-        private final Runnable task;
-
-        OneShotClientTickListener(TickEvent.Phase phase, Runnable task) {
-            this.phase = phase;
-            this.task = task;
-        }
-
-        @SubscribeEvent(priority = EventPriority.HIGHEST)
-        public void onClientTick(TickEvent.ClientTickEvent event) {
-            if (event.phase == this.phase) {
-                task.run();
-                MinecraftForge.EVENT_BUS.unregister(this);
-            }
-        }
-    }
-
     private static class OneShotClientTickListenerLowest {
-        private final TickEvent.Phase phase;
         private final Runnable task;
 
-        OneShotClientTickListenerLowest(TickEvent.Phase phase, Runnable task) {
-            this.phase = phase;
+        OneShotClientTickListenerLowest(Runnable task) {
             this.task = task;
         }
 
         @SubscribeEvent(priority = EventPriority.LOWEST)
-        public void onClientTick(TickEvent.ClientTickEvent event) {
-            if (event.phase == this.phase) {
-                task.run();
-                MinecraftForge.EVENT_BUS.unregister(this);
-            }
+        public void onClientTick(ClientTickEvent.Post event) {
+            task.run();
+            NeoForge.EVENT_BUS.unregister(this);
         }
     }
 }

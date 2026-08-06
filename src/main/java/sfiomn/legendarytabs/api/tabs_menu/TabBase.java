@@ -15,7 +15,7 @@ public abstract class TabBase {
     public static final int ICON_OFFSET_X = 4;
     public static final int ICON_OFFSET_Y = 4;
     
-    public static final ResourceLocation DEFAULT_BUTTONS_TEXTURE = new ResourceLocation(LegendaryTabs.MOD_ID, "textures/gui/buttons.png");
+    public static final ResourceLocation DEFAULT_BUTTONS_TEXTURE = ResourceLocation.fromNamespaceAndPath(LegendaryTabs.MOD_ID, "textures/gui/buttons.png");
     // Texture coordinates for 26x22 button backgrounds in 64x64 texture
     private static final int BUTTON_BG_TEX_X = 0;
     private static final int BUTTON_BG_TEX_Y = 0;

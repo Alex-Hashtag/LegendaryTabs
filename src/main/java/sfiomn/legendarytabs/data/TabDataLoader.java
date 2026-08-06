@@ -9,7 +9,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import sfiomn.legendarytabs.LegendaryTabs;
 import sfiomn.legendarytabs.api.tabs_menu.TabData;
 import sfiomn.legendarytabs.network.LegendaryTabsNetwork;
@@ -134,7 +134,7 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
                 // button_skin/icon offsets apply to every tab's button while this screen is
                 // open, not just this tab's own - the tab bar is shared UI chrome, so its skin
                 // is a property of the screen, the same way width/height/priority are.
-                ResourceLocation buttonSkin = sizeConfig.has("button_skin") ? new ResourceLocation(sizeConfig.get("button_skin").getAsString()) : null;
+                ResourceLocation buttonSkin = sizeConfig.has("button_skin") ? ResourceLocation.parse(sizeConfig.get("button_skin").getAsString()) : null;
                 int iconOffsetX = sizeConfig.has("icon_offset_x") ? sizeConfig.get("icon_offset_x").getAsInt() : 0;
                 int iconOffsetY = sizeConfig.has("icon_offset_y") ? sizeConfig.get("icon_offset_y").getAsInt() : 0;
 
@@ -162,13 +162,13 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
         
         switch (type.toLowerCase()) {
             case "texture" -> {
-                ResourceLocation texture = new ResourceLocation(iconJson.get("texture").getAsString());
+                ResourceLocation texture = ResourceLocation.parse(iconJson.get("texture").getAsString());
                 int u = iconJson.has("u") ? iconJson.get("u").getAsInt() : 0;
                 int v = iconJson.has("v") ? iconJson.get("v").getAsInt() : 0;
                 return TabData.IconData.texture(texture, u, v);
             }
             case "item" -> {
-                ResourceLocation itemId = new ResourceLocation(iconJson.get("item").getAsString());
+                ResourceLocation itemId = ResourceLocation.parse(iconJson.get("item").getAsString());
                 return TabData.IconData.item(itemId);
             }
             default -> throw new IllegalArgumentException("Unknown icon type: " + type);
@@ -185,7 +185,7 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
                 return TabData.ScreenOpenAction.keyPress(keyBinding, closeScreenFirst);
             }
             case "right_click_item" -> {
-                ResourceLocation itemId = new ResourceLocation(actionJson.get("item").getAsString());
+                ResourceLocation itemId = ResourceLocation.parse(actionJson.get("item").getAsString());
                 return TabData.ScreenOpenAction.rightClickItem(itemId);
             }
             case "open_screen" -> {
@@ -315,7 +315,7 @@ public class TabDataLoader extends SimpleJsonResourceReloadListener {
                           String jsonContent = java.nio.file.Files.readString(path);
                           JsonObject json = GSON.fromJson(jsonContent, JsonObject.class);
                           
-                          TabData tabData = parseTabData(new ResourceLocation("legendarytabs", tabId), json);
+                          TabData tabData = parseTabData(ResourceLocation.fromNamespaceAndPath("legendarytabs", tabId), json);
                           loadedTabs.put(tabData.getId(), tabData);
                           
                           LegendaryTabs.LOGGER.info("Manually loaded built-in tab: {}", tabData.getId());

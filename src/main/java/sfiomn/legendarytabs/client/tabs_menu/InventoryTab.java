@@ -12,11 +12,11 @@ import sfiomn.legendarytabs.LegendaryTabs;
 import sfiomn.legendarytabs.api.tabs_menu.TabBase;
 import sfiomn.legendarytabs.api.tabs_menu.TabsMenu;
 import sfiomn.legendarytabs.config.Config;
-import top.theillusivec4.curios.client.gui.CuriosScreenV2;
+import top.theillusivec4.curios.client.gui.CuriosScreen;
 
 
 public class InventoryTab extends TabBase {
-    private final ResourceLocation TAB_ICON = new ResourceLocation(LegendaryTabs.MOD_ID, "textures/gui/inventory.png");
+    private final ResourceLocation TAB_ICON = ResourceLocation.fromNamespaceAndPath(LegendaryTabs.MOD_ID, "textures/gui/inventory.png");
 
     public InventoryTab() {
         super();
@@ -47,7 +47,7 @@ public class InventoryTab extends TabBase {
     @Override
     public boolean isCurrentlyUsed(Screen currentScreen) {
         return currentScreen instanceof InventoryScreen ||
-                (LegendaryTabs.curiosLoaded && currentScreen instanceof CuriosScreenV2) ||
+                (LegendaryTabs.curiosLoaded && currentScreen instanceof CuriosScreen) ||
                 (LegendaryTabs.cosmeticArmorLoaded && currentScreen instanceof GuiCosArmorInventory) ;
     }
 
@@ -70,7 +70,7 @@ public class InventoryTab extends TabBase {
             TabsMenu.addTabToScreen(this, InventoryScreen.class, (player) -> 176, (player) -> 166, 10);
 
         if (LegendaryTabs.curiosLoaded)
-            TabsMenu.addTabToScreen(this, CuriosScreenV2.class, (player) -> 176, (player) -> 166, 10);
+            TabsMenu.addTabToScreen(this, CuriosScreen.class, (player) -> 176, (player) -> 166, 10);
 
         if (LegendaryTabs.quarkOdditiesLoaded)
             TabsMenu.addTabToScreen(this, BackpackInventoryScreen.class, (player) -> 176, (player) -> 224, 10);

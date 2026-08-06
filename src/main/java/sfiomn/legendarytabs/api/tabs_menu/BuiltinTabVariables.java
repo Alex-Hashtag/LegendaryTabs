@@ -1,18 +1,12 @@
 package sfiomn.legendarytabs.api.tabs_menu;
 
-import com.illusivesoulworks.diet.api.type.IDietSuite;
-import com.illusivesoulworks.diet.common.data.suite.DietSuites;
+import com.mrcrayfish.backpacked.BackpackHelper;
 import com.mrcrayfish.backpacked.item.BackpackItem;
-import com.mrcrayfish.backpacked.platform.Services;
-import com.tiviacz.travelersbackpack.capability.CapabilityUtils;
+import com.tiviacz.travelersbackpack.capability.AttachmentUtils;
 import com.tiviacz.travelersbackpack.inventory.BackpackWrapper;
-import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import sfiomn.legendarytabs.LegendaryTabs;
-
-import java.util.Collection;
-import java.util.Set;
 
 /**
  * Named values that a tab-size formula can reference as a {@code builtin} variable,
@@ -39,35 +33,33 @@ public class BuiltinTabVariables {
 
     private static int backpackedColumns(Player player) {
         if (!LegendaryTabs.backpackedLoaded) return 9;
-        ItemStack backpack = Services.BACKPACK.getBackpackStack(player);
+        ItemStack backpack = BackpackHelper.getFirstBackpackStack(player);
         if (backpack.isEmpty() || !(backpack.getItem() instanceof BackpackItem backpackItem)) return 9;
         return backpackItem.getColumnCount();
     }
 
     private static int backpackedRows(Player player) {
         if (!LegendaryTabs.backpackedLoaded) return 4;
-        ItemStack backpack = Services.BACKPACK.getBackpackStack(player);
+        ItemStack backpack = BackpackHelper.getFirstBackpackStack(player);
         if (backpack.isEmpty() || !(backpack.getItem() instanceof BackpackItem backpackItem)) return 4;
         return backpackItem.getRowCount();
     }
 
     private static boolean backpackedVisible(Player player) {
-        return LegendaryTabs.backpackedLoaded && Services.BACKPACK.isBackpackVisible(player);
+        return LegendaryTabs.backpackedLoaded && !BackpackHelper.getFirstBackpackStack(player).isEmpty();
     }
 
     private static boolean travelersTanksVisible(Player player) {
         if (!LegendaryTabs.travelersBackpackLoaded) return false;
-        BackpackWrapper wrapper = CapabilityUtils.getBackpackWrapper(player);
+        BackpackWrapper wrapper = AttachmentUtils.getBackpackWrapper(player);
         return wrapper != null && wrapper.tanksVisible();
     }
 
+    /**
+     * Diet has no NeoForge build for 1.21.1 (abandoned on Forge 1.20.1), so
+     * LegendaryTabs.dietLoaded can never be true here - always resolves to 0.
+     */
     private static int dietGroupCount(Player player) {
-        if (!LegendaryTabs.dietLoaded) return 0;
-        if (Minecraft.getInstance().level == null) return 0;
-
-        return ((Collection<?>) com.illusivesoulworks.diet.platform.Services.CAPABILITY.get(player)
-                .map((tracker) -> (Set) DietSuites.getSuite(Minecraft.getInstance().level, tracker.getSuite())
-                        .map(IDietSuite::getGroups).orElse(Set.of()))
-                .orElse(Set.of())).size();
+        return 0;
     }
 }

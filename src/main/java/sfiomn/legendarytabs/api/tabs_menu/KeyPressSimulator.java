@@ -7,14 +7,14 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.client.settings.IKeyConflictContext;
-import net.minecraftforge.client.settings.KeyConflictContext;
-import net.minecraftforge.client.settings.KeyModifier;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.settings.IKeyConflictContext;
+import net.neoforged.neoforge.client.settings.KeyConflictContext;
+import net.neoforged.neoforge.client.settings.KeyModifier;
+import net.neoforged.neoforge.common.NeoForge;
 import org.lwjgl.glfw.GLFW;
 import sfiomn.legendarytabs.LegendaryTabs;
 
@@ -348,16 +348,16 @@ public final class KeyPressSimulator {
             if (key.getType() == InputConstants.Type.MOUSE) {
                 InputEvent.MouseButton.Pre pre =
                         new InputEvent.MouseButton.Pre(key.getValue(), action, mods);
-                MinecraftForge.EVENT_BUS.post(pre);
+                NeoForge.EVENT_BUS.post(pre);
                 if (!pre.isCanceled()) {
-                    MinecraftForge.EVENT_BUS.post(
+                    NeoForge.EVENT_BUS.post(
                             new InputEvent.MouseButton.Post(key.getValue(), action, mods));
                 }
             } else {
                 int scancode = key.getType() == InputConstants.Type.SCANCODE ? key.getValue() : 0;
                 int keyCode = key.getType() == InputConstants.Type.SCANCODE
                         ? InputConstants.UNKNOWN.getValue() : key.getValue();
-                MinecraftForge.EVENT_BUS.post(new InputEvent.Key(keyCode, scancode, action, mods));
+                NeoForge.EVENT_BUS.post(new InputEvent.Key(keyCode, scancode, action, mods));
             }
         } catch (Exception e) {
             LegendaryTabs.LOGGER.debug("Failed to post input event for {}: {}",
@@ -586,7 +586,7 @@ public final class KeyPressSimulator {
 
         static void enqueue(KeyMapping mapping, boolean closeScreenFirst) {
             if (!registered) {
-                MinecraftForge.EVENT_BUS.register(new Scheduler());
+                NeoForge.EVENT_BUS.register(new Scheduler());
                 registered = true;
             }
             JOBS.add(new Job(mapping, closeScreenFirst));
@@ -594,8 +594,7 @@ public final class KeyPressSimulator {
 
         // Cloak and press at START/HIGHEST, before any mod tick handler runs.
         @SubscribeEvent(priority = EventPriority.HIGHEST)
-        public void onTickStart(TickEvent.ClientTickEvent event) {
-            if (event.phase != TickEvent.Phase.START) return;
+        public void onTickStart(ClientTickEvent.Pre event) {
             for (Job job : JOBS) {
                 if (job.closeScreenFirst) job.cloak.hide();
                 if (!job.pressed) {
@@ -612,8 +611,7 @@ public final class KeyPressSimulator {
         // Uncloak and release at END/LOWEST, after every handler has run and
         // still before the frame is drawn.
         @SubscribeEvent(priority = EventPriority.LOWEST)
-        public void onTickEnd(TickEvent.ClientTickEvent event) {
-            if (event.phase != TickEvent.Phase.END) return;
+        public void onTickEnd(ClientTickEvent.Post event) {
             JOBS.removeIf(job -> {
                 if (!job.pressed) return false;
 

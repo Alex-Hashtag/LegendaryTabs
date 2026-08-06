@@ -9,7 +9,7 @@ import java.util.Optional;
  * TabBase.getId(). Purely an in-memory structure for now - no load/save yet, so nothing set
  * here survives a restart. Persistence will likely need its own small JSON file in the config
  * directory (config/legendarytabs/), since this is dynamic per-tab-id data rather than the
- * fixed set of keys ForgeConfigSpec is built around.
+ * fixed set of keys ModConfigSpec is built around.
  */
 public class TabDisplayPreferences {
 

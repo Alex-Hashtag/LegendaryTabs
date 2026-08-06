@@ -1,36 +1,28 @@
 package sfiomn.legendarytabs.network;
 
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
-import sfiomn.legendarytabs.LegendaryTabs;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public class LegendaryTabsNetwork {
     private static final String PROTOCOL_VERSION = "1";
-    public static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder
-            .named(new ResourceLocation(LegendaryTabs.MOD_ID, "main"))
-            .serverAcceptedVersions(PROTOCOL_VERSION::equals)
-            .clientAcceptedVersions(PROTOCOL_VERSION::equals)
-            .networkProtocolVersion(() -> PROTOCOL_VERSION)
-            .simpleChannel();
 
-    private static int packetId = 0;
+    public static void register(IEventBus modBus) {
+        modBus.addListener(LegendaryTabsNetwork::onRegisterPayloadHandlers);
+    }
 
-    public static void register() {
-        CHANNEL.registerMessage(packetId++,
-                SyncTabsPacket.class,
-                SyncTabsPacket::encode,
-                SyncTabsPacket::decode,
-                SyncTabsPacket::handle);
+    private static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event) {
+        final PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
+        registrar.playToClient(SyncTabsPacket.TYPE, SyncTabsPacket.STREAM_CODEC, SyncTabsPacket::handle);
     }
 
     public static void syncTabsToAll(SyncTabsPacket packet) {
-        CHANNEL.send(PacketDistributor.ALL.noArg(), packet);
+        PacketDistributor.sendToAllPlayers(packet);
     }
 
     public static void syncTabsToPlayer(SyncTabsPacket packet, ServerPlayer player) {
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+        PacketDistributor.sendToPlayer(player, packet);
     }
 }

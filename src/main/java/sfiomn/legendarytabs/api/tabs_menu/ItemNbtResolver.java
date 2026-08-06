@@ -1,11 +1,13 @@
 package sfiomn.legendarytabs.api.tabs_menu;
 
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.world.item.component.CustomData;
 import sfiomn.legendarytabs.LegendaryTabs;
 
 /**
@@ -27,8 +29,9 @@ public class ItemNbtResolver {
         ItemStack stack = locateItem(player, locator);
         if (stack == null || stack.isEmpty()) return null;
 
-        CompoundTag tag = stack.getTag();
-        if (tag == null) return null;
+        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+        if (customData == null) return null;
+        CompoundTag tag = customData.copyTag();
 
         String[] segments = path.split("\\.");
         CompoundTag current = tag;
@@ -56,7 +59,7 @@ public class ItemNbtResolver {
         }
         if (locator.equals("travelers_backpack_wearable")) {
             if (!LegendaryTabs.travelersBackpackLoaded) return null;
-            var wrapper = com.tiviacz.travelersbackpack.capability.CapabilityUtils.getBackpackWrapper(player);
+            var wrapper = com.tiviacz.travelersbackpack.capability.AttachmentUtils.getBackpackWrapper(player);
             return wrapper != null ? wrapper.getBackpackStack() : null;
         }
         if (locator.startsWith("inventory:")) {
@@ -80,10 +83,9 @@ public class ItemNbtResolver {
     private static ItemStack findInCurios(Player player, String pattern) {
         if (!LegendaryTabs.curiosLoaded) return null;
         try {
-            var helper = top.theillusivec4.curios.api.CuriosApi.getCuriosHelper();
-            var lazyOpt = helper.getCuriosHandler(player);
-            if (lazyOpt.isPresent()) {
-                var handler = lazyOpt.resolve().get();
+            var handlerOpt = top.theillusivec4.curios.api.CuriosApi.getCuriosInventory(player);
+            if (handlerOpt.isPresent()) {
+                var handler = handlerOpt.get();
                 for (var entry : handler.getCurios().entrySet()) {
                     var stacksHandler = entry.getValue().getStacks();
                     for (int i = 0; i < stacksHandler.getSlots(); i++) {
@@ -100,7 +102,7 @@ public class ItemNbtResolver {
 
     private static boolean matchesPattern(ItemStack stack, String pattern) {
         if (stack.isEmpty()) return false;
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (id == null) return false;
         if (pattern.endsWith(":*")) {
             String namespace = pattern.substring(0, pattern.length() - 2);

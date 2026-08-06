@@ -1,8 +1,8 @@
 package sfiomn.legendarytabs.config;
 
-import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.neoforge.common.ModConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -15,17 +15,17 @@ import java.nio.file.Path;
 
 public class Config
 {
-	public static final ForgeConfigSpec CLIENT_SPEC;
+	public static final ModConfigSpec CLIENT_SPEC;
 	public static final Client CLIENT;
 
 	static
 	{
-		final Pair<Client, ForgeConfigSpec> client = new ForgeConfigSpec.Builder().configure(Client::new);
+		final Pair<Client, ModConfigSpec> client = new ModConfigSpec.Builder().configure(Client::new);
 		CLIENT_SPEC = client.getRight();
 		CLIENT = client.getLeft();
 	}
 
-	public static void register(FMLJavaModLoadingContext context)
+	public static void register(ModContainer modContainer)
 	{
 		Path configPath = LegendaryTabs.modConfigPath;
 
@@ -38,19 +38,19 @@ public class Config
 		}
 
 
-		context.registerConfig(ModConfig.Type.CLIENT, CLIENT_SPEC, LegendaryTabs.MOD_ID + "/" + LegendaryTabs.MOD_ID +"-client.toml");
+		modContainer.registerConfig(ModConfig.Type.CLIENT, CLIENT_SPEC, LegendaryTabs.MOD_ID + "/" + LegendaryTabs.MOD_ID +"-client.toml");
 	}
 
 	public static class Client
 	{
-		public final ForgeConfigSpec.BooleanValue verboseLoggingEnabled;
+		public final ModConfigSpec.BooleanValue verboseLoggingEnabled;
 
-		public final ForgeConfigSpec.IntValue tabsMenuOffsetX;
-		public final ForgeConfigSpec.IntValue tabsMenuOffsetY;
-		public final ForgeConfigSpec.BooleanValue includeOpenedScreenTab;
-		public final ForgeConfigSpec.BooleanValue inventoryTabEnabled;
+		public final ModConfigSpec.IntValue tabsMenuOffsetX;
+		public final ModConfigSpec.IntValue tabsMenuOffsetY;
+		public final ModConfigSpec.BooleanValue includeOpenedScreenTab;
+		public final ModConfigSpec.BooleanValue inventoryTabEnabled;
 
-		Client(ForgeConfigSpec.Builder builder)
+		Client(ModConfigSpec.Builder builder)
 		{
 			builder.push("general").comment(" General mod settings");
 			verboseLoggingEnabled = builder
@@ -83,7 +83,7 @@ public class Config
 
 	public static class Server
 	{
-		Server(ForgeConfigSpec.Builder builder)
+		Server(ModConfigSpec.Builder builder)
 		{
 
 		}
